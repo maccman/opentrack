@@ -1,0 +1,23 @@
+{
+  "extends": "@ocavue/tsconfig/dom/app.json",
+  "include": ["./**/*", "./.astro/**/*"],
+  "exclude": ["dist", "node_modules"],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "references": [
+    {
+      "path": "../../packages/api/tsconfig.json"
+    },
+    {
+      "path": "../../packages/db/tsconfig.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.json"
+    }
+  ]
+}

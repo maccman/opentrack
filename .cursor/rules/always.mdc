@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Development cycle
+
+1. Before writing any code, come up with an extremely good plan, review the plan, and then ask the user for permission to execute the plan.
+2. After you have executed the plan, run: `pnpm typecheck` and `pnpm lint`
+3. If there are any linting errors, run `pnpm fix`
+4. To run tests: `pnpm test --filter @app/<web/api/db>`
+5. Never try to start a dev server or curl a local endpoint.

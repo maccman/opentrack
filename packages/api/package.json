@@ -1,0 +1,30 @@
+{
+  "name": "@app/api",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Server-side tRPC API definitions",
+  "main": "index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@app/db": "workspace:*",
+    "@app/utils": "workspace:*",
+    "@trpc/server": "^11.1.2",
+    "kysely": "^0.28.2",
+    "pg": "^8.15.6",
+    "superjson": "^2.2.2",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/pg": "^8.15.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}
