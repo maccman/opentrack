@@ -1,14 +1,16 @@
 {
-  "extends": "@ocavue/tsconfig/dom/app.json",
-  "include": ["./**/*", "./.astro/**/*"],
-  "exclude": ["dist", "node_modules"],
+  "extends": "@ocavue/tsconfig/es/app.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
+    "composite": true,
+    "outDir": "dist",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "verbatimModuleSyntax": false
   },
+  "include": ["src/**/*", ".nitro/types/nitro.d.ts", "nitro.config.ts", "vitest.config.mts", "tests/**/*"],
+  "exclude": ["node_modules", "dist"],
   "references": [
     {
       "path": "../../packages/api/tsconfig.json"
