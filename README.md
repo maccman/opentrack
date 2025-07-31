@@ -1,7 +1,5 @@
 # Libroseg
 
-![Libroseg Logo](https://raw.githubusercontent.com/riven-io/libroseg/master/.github/logo.png)
-
 **Libroseg** is a lightweight, open-source Segment alternative designed for high-performance event tracking and seamless integration with modern data stacks. Built to be deployed on serverless platforms like Vercel, it offers a Segment-compliant API that can process and route analytics events to various destinations with minimal latency.
 
 ## Table of Contents
