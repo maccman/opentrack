@@ -37,10 +37,10 @@ CUSTOMERIO_REGION=US  # or EU
 ### Programmatic Configuration
 
 ```typescript
-import { CustomerioIntegration } from '@app/customerio';
+import { CustomerioIntegration } from '@app/customerio'
 
 // Create from environment variables
-const customerio = CustomerioIntegration.fromEnvironment();
+const customerio = CustomerioIntegration.fromEnvironment()
 
 // Or create with explicit configuration
 const customerio = new CustomerioIntegration({
@@ -49,7 +49,7 @@ const customerio = new CustomerioIntegration({
   region: 'US', // or 'EU'
   timeout: 10000, // optional, default 10s
   retryAttempts: 3, // optional, default 3
-});
+})
 ```
 
 ## Usage
@@ -68,7 +68,7 @@ await customerio.identify({
     company: 'Acme Corp',
     createdAt: new Date(),
   },
-});
+})
 ```
 
 ### Track Events
@@ -86,7 +86,7 @@ await customerio.track({
     currency: 'USD',
     items: ['Product A', 'Product B'],
   },
-});
+})
 
 // Anonymous event (before user login)
 await customerio.track({
@@ -97,7 +97,7 @@ await customerio.track({
     category: 'Electronics',
     price: 299.99,
   },
-});
+})
 ```
 
 ### Track Page Views
@@ -115,7 +115,7 @@ await customerio.page({
     referrer: '/products',
     search: '?color=blue',
   },
-});
+})
 ```
 
 ### Group Users
@@ -132,7 +132,7 @@ await customerio.group({
     employees: 1500,
     plan: 'Enterprise',
   },
-});
+})
 ```
 
 ### Alias Users
@@ -142,9 +142,9 @@ Merge different user identities:
 ```typescript
 // Merge anonymous visitor with registered user
 await customerio.alias({
-  userId: 'user_123',          // New permanent ID
-  previousId: 'visitor_789',   // Previous anonymous/temporary ID
-});
+  userId: 'user_123', // New permanent ID
+  previousId: 'visitor_789', // Previous anonymous/temporary ID
+})
 ```
 
 ## Regional Configuration
@@ -157,17 +157,17 @@ const customerioUS = new CustomerioIntegration({
   siteId: 'site_id',
   apiKey: 'api_key',
   region: 'US',
-});
+})
 
 // EU region for GDPR compliance
 const customerioEU = new CustomerioIntegration({
   siteId: 'site_id',
   apiKey: 'api_key',
   region: 'EU',
-});
+})
 
 // Change region dynamically
-customerio.setRegion('EU');
+customerio.setRegion('EU')
 ```
 
 ## Error Handling
@@ -179,14 +179,14 @@ try {
   await customerio.identify({
     userId: 'user_123',
     traits: { email: 'invalid-email' },
-  });
+  })
 } catch (error) {
   if (error.code === 'VALIDATION_ERROR') {
-    console.log('Invalid data:', error.message);
+    console.log('Invalid data:', error.message)
   } else if (error.code === 'AUTHENTICATION_ERROR') {
-    console.log('Check your credentials');
+    console.log('Check your credentials')
   } else if (error.code === 'RATE_LIMIT_ERROR') {
-    console.log('Rate limited, will retry automatically');
+    console.log('Rate limited, will retry automatically')
   }
 }
 ```
@@ -206,11 +206,11 @@ try {
 Test your Customer.io connection:
 
 ```typescript
-const isConnected = await customerio.testConnection();
+const isConnected = await customerio.testConnection()
 if (isConnected) {
-  console.log('Customer.io connection successful');
+  console.log('Customer.io connection successful')
 } else {
-  console.log('Customer.io connection failed - check credentials');
+  console.log('Customer.io connection failed - check credentials')
 }
 ```
 
@@ -225,13 +225,13 @@ Always identify users with a consistent `userId`:
 await customerio.identify({
   userId: 'user_12345',
   traits: { email: 'user@example.com' },
-});
+})
 
 // ❌ Bad: Using email as user ID (emails can change)
 await customerio.identify({
   userId: 'user@example.com',
   traits: { name: 'John' },
-});
+})
 ```
 
 ### 2. Event Naming
@@ -244,14 +244,14 @@ await customerio.track({
   userId: 'user_123',
   event: 'Purchase Completed',
   properties: { revenue: 99.99 },
-});
+})
 
 // ❌ Bad: Vague or unclear
 await customerio.track({
   userId: 'user_123',
   event: 'action',
   properties: { value: 99.99 },
-});
+})
 ```
 
 ### 3. Property Structure
@@ -269,7 +269,7 @@ await customerio.track({
     revenue: 999.99,
     currency: 'USD',
   },
-});
+})
 
 // ❌ Bad: Deep nesting
 await customerio.track({
@@ -278,12 +278,10 @@ await customerio.track({
   properties: {
     order: {
       id: 'ord_123',
-      items: [
-        { product: { name: 'iPhone 15' } },
-      ],
+      items: [{ product: { name: 'iPhone 15' } }],
     },
   },
-});
+})
 ```
 
 ### 4. Anonymous Tracking
@@ -292,19 +290,19 @@ Use consistent anonymous IDs for better user journey tracking:
 
 ```typescript
 // Store anonymous ID in browser storage
-const anonymousId = localStorage.getItem('anonymousId') || generateAnonymousId();
+const anonymousId = localStorage.getItem('anonymousId') || generateAnonymousId()
 
 await customerio.track({
   event: 'Product Viewed',
   anonymousId,
   properties: { productId: 'prod_123' },
-});
+})
 
 // Later, when user logs in, connect the data
 await customerio.alias({
   userId: 'user_123',
   previousId: anonymousId,
-});
+})
 ```
 
 ## Advanced Configuration
@@ -315,22 +313,20 @@ await customerio.alias({
 const customerio = new CustomerioIntegration({
   siteId: 'site_id',
   apiKey: 'api_key',
-  timeout: 15000,      // 15 second timeout
-  retryAttempts: 5,    // Retry up to 5 times
-});
+  timeout: 15000, // 15 second timeout
+  retryAttempts: 5, // Retry up to 5 times
+})
 ```
 
 ### Development vs Production
 
 ```typescript
 const customerio = new CustomerioIntegration({
-  siteId: process.env.NODE_ENV === 'production' 
-    ? process.env.CUSTOMERIO_SITE_ID_PROD
-    : process.env.CUSTOMERIO_SITE_ID_DEV,
-  apiKey: process.env.NODE_ENV === 'production'
-    ? process.env.CUSTOMERIO_API_KEY_PROD
-    : process.env.CUSTOMERIO_API_KEY_DEV,
-});
+  siteId:
+    process.env.NODE_ENV === 'production' ? process.env.CUSTOMERIO_SITE_ID_PROD : process.env.CUSTOMERIO_SITE_ID_DEV,
+  apiKey:
+    process.env.NODE_ENV === 'production' ? process.env.CUSTOMERIO_API_KEY_PROD : process.env.CUSTOMERIO_API_KEY_DEV,
+})
 ```
 
 ## Troubleshooting
@@ -338,14 +334,17 @@ const customerio = new CustomerioIntegration({
 ### Common Issues
 
 1. **Authentication Errors**
+
    - Verify your Site ID and API Key
    - Check that you're using the correct region
 
 2. **Invalid Email Errors**
+
    - Ensure email addresses are valid format
    - Use the built-in email validation
 
 3. **Rate Limiting**
+
    - The integration automatically retries with exponential backoff
    - Consider reducing request frequency if persistent
 
@@ -359,11 +358,11 @@ Enable debug logging to troubleshoot issues:
 
 ```typescript
 // Set environment variable
-process.env.DEBUG = 'customerio:*';
+process.env.DEBUG = 'customerio:*'
 
 // Or use the test connection method
-const connected = await customerio.testConnection();
-console.log('Connection status:', connected);
+const connected = await customerio.testConnection()
+console.log('Connection status:', connected)
 ```
 
 ## Support

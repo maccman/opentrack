@@ -1,13 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { CustomerioIntegration } from '../index';
-import { TrackClient } from 'customerio-node';
-import {
-  IdentifyCall,
-  TrackCall,
-  PageCall,
-  GroupCall,
-  AliasCall,
-} from '@app/spec';
+import { AliasCall, GroupCall, IdentifyCall, TrackCall } from '@app/spec'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CustomerioIntegration } from '../index'
 
 // Mock the customerio-node module
 vi.mock('customerio-node', () => ({
@@ -20,12 +13,17 @@ vi.mock('customerio-node', () => ({
   })),
   RegionUS: 'US',
   RegionEU: 'EU',
-}));
+  IdentifierType: {
+    Id: 'id',
+    Email: 'email',
+    CioId: 'cio_id',
+  },
+}))
 
 describe('CustomerioIntegration', () => {
-  let integration: CustomerioIntegration;
-  let mockClient: any;
-  let originalEnv: Record<string, string | undefined>;
+  let integration: CustomerioIntegration
+  let mockClient: any
+  let originalEnv: Record<string, string | undefined>
 
   beforeEach(() => {
     // Save original environment variables
@@ -33,29 +31,29 @@ describe('CustomerioIntegration', () => {
       CUSTOMERIO_SITE_ID: process.env.CUSTOMERIO_SITE_ID,
       CUSTOMERIO_API_KEY: process.env.CUSTOMERIO_API_KEY,
       CUSTOMERIO_REGION: process.env.CUSTOMERIO_REGION,
-    };
+    }
 
     integration = new CustomerioIntegration({
       siteId: 'test_site_id',
       apiKey: 'test_api_key',
       region: 'US',
-    });
+    })
 
     // Get the mocked client instance
-    mockClient = (integration as any).client;
-  });
+    mockClient = (integration as any).client
+  })
 
   afterEach(() => {
     // Restore original environment variables
-    Object.keys(originalEnv).forEach(key => {
+    Object.keys(originalEnv).forEach((key) => {
       if (originalEnv[key] !== undefined) {
-        process.env[key] = originalEnv[key];
+        process.env[key] = originalEnv[key]
       } else {
-        delete process.env[key];
+        delete process.env[key]
       }
-    });
-    vi.clearAllMocks();
-  });
+    })
+    vi.clearAllMocks()
+  })
 
   describe('constructor', () => {
     it('should create instance with provided config', () => {
@@ -64,45 +62,43 @@ describe('CustomerioIntegration', () => {
         apiKey: 'key456',
         region: 'EU' as const,
         timeout: 5000,
-      };
+      }
 
-      const instance = new CustomerioIntegration(config);
-      expect(instance.getConfig()).toMatchObject(config);
-    });
+      const instance = new CustomerioIntegration(config)
+      expect(instance.getConfig()).toMatchObject(config)
+    })
 
     it('should use default timeout when not provided', () => {
       const instance = new CustomerioIntegration({
         siteId: 'site123',
         apiKey: 'key456',
-      });
+      })
 
-      expect(instance.getConfig().timeout).toBe(10000);
-    });
-  });
+      expect(instance.getConfig().timeout).toBe(10000)
+    })
+  })
 
   describe('fromEnvironment', () => {
     it('should create instance from environment variables', () => {
-      process.env.CUSTOMERIO_SITE_ID = 'env_site_id';
-      process.env.CUSTOMERIO_API_KEY = 'env_api_key';
-      process.env.CUSTOMERIO_REGION = 'EU';
+      process.env.CUSTOMERIO_SITE_ID = 'env_site_id'
+      process.env.CUSTOMERIO_API_KEY = 'env_api_key'
+      process.env.CUSTOMERIO_REGION = 'EU'
 
-      const instance = CustomerioIntegration.fromEnvironment();
-      const config = instance.getConfig();
+      const instance = CustomerioIntegration.fromEnvironment()
+      const config = instance.getConfig()
 
-      expect(config.siteId).toBe('env_site_id');
-      expect(config.apiKey).toBe('env_api_key');
-      expect(config.region).toBe('EU');
-    });
+      expect(config.siteId).toBe('env_site_id')
+      expect(config.apiKey).toBe('env_api_key')
+      expect(config.region).toBe('EU')
+    })
 
     it('should throw error when environment variables are missing', () => {
-      delete process.env.CUSTOMERIO_SITE_ID;
-      delete process.env.CUSTOMERIO_API_KEY;
+      delete process.env.CUSTOMERIO_SITE_ID
+      delete process.env.CUSTOMERIO_API_KEY
 
-      expect(() => CustomerioIntegration.fromEnvironment()).toThrow(
-        'Customer.io credentials not found'
-      );
-    });
-  });
+      expect(() => CustomerioIntegration.fromEnvironment()).toThrow('Customer.io credentials not found')
+    })
+  })
 
   describe('identify', () => {
     it('should call client identify with transformed data', async () => {
@@ -112,15 +108,15 @@ describe('CustomerioIntegration', () => {
           email: 'test@example.com',
           name: 'Test User',
         },
-      };
+      }
 
-      await integration.identify(call);
+      await integration.identify(call)
 
       expect(mockClient.identify).toHaveBeenCalledWith('user123', {
         email: 'test@example.com',
         name: 'Test User',
-      });
-    });
+      })
+    })
 
     it('should validate email format', async () => {
       const call: IdentifyCall = {
@@ -128,26 +124,26 @@ describe('CustomerioIntegration', () => {
         traits: {
           email: 'invalid-email',
         },
-      };
+      }
 
-      await expect(integration.identify(call)).rejects.toThrow('Invalid email format');
-    });
+      await expect(integration.identify(call)).rejects.toThrow('Invalid email format')
+    })
 
     it('should handle timestamp conversion', async () => {
       const call: IdentifyCall = {
         userId: 'user123',
         traits: { email: 'test@example.com' },
         timestamp: '2023-01-01T00:00:00Z',
-      };
+      }
 
-      await integration.identify(call);
+      await integration.identify(call)
 
       expect(mockClient.identify).toHaveBeenCalledWith('user123', {
         email: 'test@example.com',
         created_at: 1672531200,
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('track', () => {
     it('should call client track for identified users', async () => {
@@ -158,9 +154,9 @@ describe('CustomerioIntegration', () => {
           revenue: 99.99,
           currency: 'USD',
         },
-      };
+      }
 
-      await integration.track(call);
+      await integration.track(call)
 
       expect(mockClient.track).toHaveBeenCalledWith('user123', {
         name: 'Purchase Completed',
@@ -168,8 +164,8 @@ describe('CustomerioIntegration', () => {
           revenue: 99.99,
           currency: 'USD',
         },
-      });
-    });
+      })
+    })
 
     it('should call trackAnonymous for anonymous users', async () => {
       const call: TrackCall = {
@@ -178,17 +174,17 @@ describe('CustomerioIntegration', () => {
           url: '/home',
         },
         anonymousId: 'anon123',
-      };
+      }
 
-      await integration.track(call);
+      await integration.track(call)
 
       expect(mockClient.trackAnonymous).toHaveBeenCalledWith('anon123', {
         name: 'Page Viewed',
         data: {
           url: '/home',
         },
-      });
-    });
+      })
+    })
 
     it('should generate anonymous ID when not provided', async () => {
       const call: TrackCall = {
@@ -196,66 +192,64 @@ describe('CustomerioIntegration', () => {
         properties: {
           url: '/home',
         },
-      };
+      }
 
-      await integration.track(call);
+      await integration.track(call)
 
-      expect(mockClient.trackAnonymous).toHaveBeenCalledWith(
-        expect.stringMatching(/^anon_/),
-        {
-          name: 'Page Viewed',
-          data: {
-            url: '/home',
-          },
-        }
-      );
-    });
-  });
+      expect(mockClient.trackAnonymous).toHaveBeenCalledWith(expect.stringMatching(/^anon_/), {
+        name: 'Page Viewed',
+        data: {
+          url: '/home',
+        },
+      })
+    })
+  })
 
   describe('page', () => {
     it('should call track with page event for identified users', async () => {
-      const call: PageCall = {
+      const payload: PagePayload = {
+        type: 'page',
         userId: 'user123',
         name: 'Home',
-        category: 'Marketing',
         properties: {
           url: '/home',
         },
-      };
+      }
 
-      await integration.page(call);
+      await integration.page(payload)
 
       expect(mockClient.track).toHaveBeenCalledWith('user123', {
         name: 'page_viewed',
         data: {
           url: '/home',
-          page_title: 'Marketing Home',
+          page_title: 'Home',
           page_name: 'Home',
-          page_category: 'Marketing',
         },
-      });
-    });
+      })
+    })
 
     it('should also call trackPageView when URL is available', async () => {
-      const call: PageCall = {
+      const payload: PagePayload = {
+        type: 'page',
         userId: 'user123',
         properties: {
           url: '/home',
         },
-      };
+      }
 
-      await integration.page(call);
+      await integration.page(payload)
 
-      expect(mockClient.trackPageView).toHaveBeenCalledWith('user123', '/home');
-    });
+      expect(mockClient.trackPageView).toHaveBeenCalledWith('user123', '/home')
+    })
 
     it('should handle anonymous page views', async () => {
-      const call: PageCall = {
+      const payload: PagePayload = {
+        type: 'page',
         name: 'Home',
         anonymousId: 'anon123',
-      };
+      }
 
-      await integration.page(call);
+      await integration.page(payload)
 
       expect(mockClient.trackAnonymous).toHaveBeenCalledWith('anon123', {
         name: 'page_viewed',
@@ -263,9 +257,9 @@ describe('CustomerioIntegration', () => {
           page_title: 'Home',
           page_name: 'Home',
         },
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('group', () => {
     it('should update user with group information and track group joined event', async () => {
@@ -276,9 +270,9 @@ describe('CustomerioIntegration', () => {
           name: 'Acme Corp',
           industry: 'Technology',
         },
-      };
+      }
 
-      await integration.group(call);
+      await integration.group(call)
 
       // Should update user with group attributes
       expect(mockClient.identify).toHaveBeenCalledWith('user123', {
@@ -286,7 +280,7 @@ describe('CustomerioIntegration', () => {
         group_company456_joined_at: expect.any(Number),
         group_name: 'Acme Corp',
         group_industry: 'Technology',
-      });
+      })
 
       // Should track group joined event
       expect(mockClient.track).toHaveBeenCalledWith('user123', {
@@ -296,112 +290,107 @@ describe('CustomerioIntegration', () => {
           name: 'Acme Corp',
           industry: 'Technology',
         },
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('alias', () => {
     it('should call mergeCustomers with correct parameters', async () => {
       const call: AliasCall = {
         userId: 'user123',
         previousId: 'temp456',
-      };
+      }
 
-      await integration.alias(call);
+      await integration.alias(call)
 
-      expect(mockClient.mergeCustomers).toHaveBeenCalledWith(
-        'id',
-        'user123',
-        'id',
-        'temp456'
-      );
-    });
-  });
+      expect(mockClient.mergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
+    })
+  })
 
   describe('getName', () => {
     it('should return integration name', () => {
-      expect(integration.getName()).toBe('customerio');
-    });
-  });
+      expect(integration.getName()).toBe('customerio')
+    })
+  })
 
   describe('setRegion', () => {
     it('should update region and recreate client', () => {
-      const originalClient = (integration as any).client;
-      
-      integration.setRegion('EU');
-      
-      expect(integration.getConfig().region).toBe('EU');
+      const originalClient = (integration as any).client
+
+      integration.setRegion('EU')
+
+      expect(integration.getConfig().region).toBe('EU')
       // Client should be recreated (different instance)
-      expect((integration as any).client).not.toBe(originalClient);
-    });
-  });
+      expect((integration as any).client).not.toBe(originalClient)
+    })
+  })
 
   describe('testConnection', () => {
     it('should return true for successful connection', async () => {
-      const result = await integration.testConnection();
-      expect(result).toBe(true);
-      expect(mockClient.identify).toHaveBeenCalled();
-    });
+      const result = await integration.testConnection()
+      expect(result).toBe(true)
+      expect(mockClient.identify).toHaveBeenCalled()
+    })
 
     it('should return false for authentication errors', async () => {
       mockClient.identify.mockRejectedValueOnce({
         statusCode: 401,
         message: 'Unauthorized',
-      });
+      })
 
-      const result = await integration.testConnection();
-      expect(result).toBe(false);
-    });
+      const result = await integration.testConnection()
+      expect(result).toBe(false)
+    })
 
     it('should return true for other errors (connection is working)', async () => {
       mockClient.identify.mockRejectedValueOnce({
         statusCode: 400,
         message: 'Bad Request',
-      });
+      })
 
-      const result = await integration.testConnection();
-      expect(result).toBe(true);
-    });
-  });
+      const result = await integration.testConnection()
+      expect(result).toBe(true)
+    })
+  })
 
   describe('error handling and retries', () => {
     it('should retry on retryable errors', async () => {
       mockClient.identify
         .mockRejectedValueOnce({ statusCode: 500 })
         .mockRejectedValueOnce({ statusCode: 500 })
-        .mockResolvedValueOnce({});
+        .mockResolvedValueOnce({})
 
       const call: IdentifyCall = {
         userId: 'user123',
         traits: { email: 'test@example.com' },
-      };
+      }
 
-      await integration.identify(call);
-      expect(mockClient.identify).toHaveBeenCalledTimes(3);
-    });
+      await integration.identify(call)
+      expect(mockClient.identify).toHaveBeenCalledTimes(3)
+    })
 
     it('should not retry on non-retryable errors', async () => {
-      mockClient.identify.mockRejectedValueOnce({ statusCode: 400 });
+      mockClient.identify.mockRejectedValueOnce({ statusCode: 400 })
 
       const call: IdentifyCall = {
         userId: 'user123',
         traits: { email: 'test@example.com' },
-      };
+      }
 
-      await expect(integration.identify(call)).rejects.toThrow();
-      expect(mockClient.identify).toHaveBeenCalledTimes(1);
-    });
+      await expect(integration.identify(call)).rejects.toThrow()
+      expect(mockClient.identify).toHaveBeenCalledTimes(1)
+    })
 
     it('should throw after maximum retry attempts', async () => {
-      mockClient.identify.mockRejectedValue({ statusCode: 500 });
+      mockClient.identify.mockRejectedValue({ statusCode: 500 })
 
       const call: IdentifyCall = {
         userId: 'user123',
         traits: { email: 'test@example.com' },
-      };
+      }
 
-      await expect(integration.identify(call)).rejects.toThrow();
-      expect(mockClient.identify).toHaveBeenCalledTimes(3); // Default retry attempts
-    });
-  });
-});
+      await expect(integration.identify(call)).rejects.toThrow()
+      expect(mockClient.identify).toHaveBeenCalledTimes(3) // Default retry attempts
+    })
+  })
+})

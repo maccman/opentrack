@@ -1,28 +1,25 @@
 {
-  "name": "@app/customerio",
-  "version": "1.0.0",
-  "description": "Customer.io integration for libroseg",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist/**/*"
-  ],
+  "name": "@integrations/customerio",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Customer.io integration for the Libroseg project",
+  "main": "index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "build": "tsc",
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx"
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@app/core": "workspace:*",
     "@app/spec": "workspace:*",
     "customerio-node": "^3.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
   },
   "keywords": [
     "customerio",
