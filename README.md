@@ -1,6 +1,37 @@
 # OpenTrack
 
-**OpenTrack** is a lightweight, open-source Segment alternative designed for high-performance event tracking and seamless integration with modern data stacks. Built to be deployed on serverless platforms like Vercel, it offers a Segment-compliant API that can process and route analytics events to various destinations with minimal latency.
+**OpenTrack** is a lightweight, open-source Segment alternative designed for high-performance event tracking. Built to be deployed on Vercel and has a Segment compatible API.
+
+## Quick start
+
+1. Deploy OpenTrack to Vercel with a single click:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/maccman/opentrack&envLink=https://github.com/maccman/opentrack#configuration)
+
+2. Configure the integrations you want to use through ENV variables on Vercel (e.g. `CUSTOMERIO_SITE_ID`).
+
+3. Use the OpenTrack API to send events to your integrations.
+
+```javascript
+import Analytics from 'analytics-node'
+
+const analytics = new Analytics('', {
+  host: 'https://your-opentrack-deployment.vercel.app',
+})
+
+// Track an event
+analytics.track({
+  userId: 'user-123',
+  event: 'Product Purchased',
+  properties: {
+    productId: 'prod-456',
+    price: 99.99,
+    currency: 'USD',
+  },
+})
+```
+
+## Documentation
 
 ## Table of Contents
 
@@ -26,9 +57,12 @@
 - **Segment-Compliant API**: Drop-in replacement for Segment’s HTTP Tracking API. Use existing Segment SDKs with minimal configuration changes.
 - **High Performance**: Built for serverless environments, OpenTrack provides rapid response times by processing events asynchronously.
 - **Extensible Integration Framework**: Easily add new destinations for your analytics data.
-- **Pre-built Integrations**: Out-of-the-box support for Google BigQuery and Customer.io.
-- **Self-Hostable**: Deploy on Vercel or any other Node.js-compatible serverless platform for full control over your data pipeline.
-- **Robust Validation**: Ensures data integrity with Zod-based schema validation for all incoming events.
+
+## Available integrations
+
+- [Google BigQuery](./integrations/bigquery/README.md)
+- [Customer.io](./integrations/customerio/README.md)
+- [Webhook](./integrations/webhook/README.md)
 
 ## Architecture
 
@@ -101,6 +135,8 @@ Follow these steps to set up and run your own instance of OpenTrack.
 - [pnpm](https://pnpm.io/)
 
 ### Installation
+
+#### Manual Deployment
 
 1.  Clone the repository, and then import into Vercel.
 
