@@ -10,11 +10,14 @@ export class BigQueryIntegration implements Integration {
   private tableManager: TableManager | null = null
   private datasetId = process.env.BIGQUERY_DATASET
   private projectId = process.env.BIGQUERY_PROJECT_ID
+  private autoTableManagement = process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT === 'true'
 
   constructor() {
     if (this.isEnabled()) {
       this.client = new BigQuery()
-      this.tableManager = new TableManager(this.client, this.projectId!)
+      if (this.autoTableManagement) {
+        this.tableManager = new TableManager(this.client, this.projectId!)
+      }
     }
   }
 
@@ -23,18 +26,23 @@ export class BigQueryIntegration implements Integration {
   }
 
   private async insert(payload: Payload, tableName: string) {
-    if (!this.tableManager || !this.datasetId) {
+    if (!this.client || !this.datasetId) {
       return
     }
 
     const row = transformToRow(payload)
-    const tableType = this.getTableType(payload, tableName)
 
-    // Use table manager to handle auto-creation and schema evolution
-    await this.tableManager.insertWithAutoSchema(this.datasetId, tableName, tableType, [row])
+    if (this.tableManager) {
+      // Use table manager for auto-creation and schema evolution
+      const tableType = this.getTableType(tableName)
+      await this.tableManager.insertWithAutoSchema(this.datasetId, tableName, tableType, [row])
+    } else {
+      // Direct insertion, will fail if schema is incorrect
+      await this.client.dataset(this.datasetId).table(tableName).insert([row])
+    }
   }
 
-  private getTableType(payload: Payload, tableName: string): string {
+  private getTableType(tableName: string): string {
     // For standard tables, use the payload type
     switch (tableName) {
       case 'identifies':
@@ -63,7 +71,6 @@ export class BigQueryIntegration implements Integration {
   }
 
   public async identify(payload: IdentifyPayload): Promise<void> {
-    // Insert into identifies table. The `users` table is a dynamic table that is created on the fly.
     await this.insertToAllTables(payload)
   }
 
