@@ -10,41 +10,63 @@ type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | Ali
  */
 
 /**
- * Transforms a Segment payload into a BigQuery row following Segment conventions
- * @param payload - The Segment payload to transform
- * @returns BigQuery row object with proper column names and values
+ * Creates the base row with common fields for all event types
+ * @param payload - The Segment payload
+ * @returns Base row with common fields
  */
-export function transformToRow(payload: Payload): Record<string, unknown> {
-  const row: Record<string, unknown> = {
-    id: payload.messageId,
-    received_at: new Date(),
-    sent_at: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-    timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-    uuid_ts: new Date(),
-    loaded_at: new Date(),
-  }
+function createBaseRow(payload: Payload): Record<string, unknown> {
+  const now = new Date()
+  const timestamp = payload.timestamp ? new Date(payload.timestamp) : now
 
-  // Add user identifiers
+  return {
+    id: payload.messageId,
+    received_at: now,
+    sent_at: timestamp,
+    timestamp,
+    uuid_ts: now,
+    loaded_at: now,
+  }
+}
+
+/**
+ * Adds user identifiers to the row
+ * @param row - The row object to modify
+ * @param payload - The Segment payload
+ */
+function addUserIdentifiers(row: Record<string, unknown>, payload: Payload): void {
   if (payload.userId) {
     row.user_id = payload.userId
   }
+
+  // Alias events don't include anonymous_id
   if (payload.type !== 'alias' && payload.anonymousId) {
     row.anonymous_id = payload.anonymousId
   }
+}
 
-  // Flatten context properties
+/**
+ * Adds flattened context properties to the row
+ * @param row - The row object to modify
+ * @param payload - The Segment payload
+ */
+function addContextFields(row: Record<string, unknown>, payload: Payload): void {
   if (payload.context) {
     const flattenedContext = flattenObject(payload.context as Record<string, unknown>, 'context')
     Object.assign(row, flattenedContext)
   }
+}
 
-  // Add type-specific fields
+/**
+ * Adds type-specific fields based on the payload type
+ * @param row - The row object to modify
+ * @param payload - The Segment payload
+ */
+function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): void {
   switch (payload.type) {
     case 'track':
       row.event = eventNameToTableName(payload.event)
       row.event_text = payload.event
 
-      // Flatten properties as top-level columns
       if (payload.properties) {
         const flattenedProps = flattenObject(payload.properties)
         Object.assign(row, flattenedProps)
@@ -52,7 +74,6 @@ export function transformToRow(payload: Payload): Record<string, unknown> {
       break
 
     case 'identify':
-      // Flatten traits as top-level columns
       if (payload.traits) {
         const flattenedTraits = flattenObject(payload.traits)
         Object.assign(row, flattenedTraits)
@@ -64,7 +85,6 @@ export function transformToRow(payload: Payload): Record<string, unknown> {
         row.name = payload.name
       }
 
-      // Flatten properties as top-level columns
       if (payload.properties) {
         const flattenedProps = flattenObject(payload.properties)
         Object.assign(row, flattenedProps)
@@ -74,7 +94,6 @@ export function transformToRow(payload: Payload): Record<string, unknown> {
     case 'group':
       row.group_id = payload.groupId
 
-      // Flatten traits as top-level columns
       if (payload.traits) {
         const flattenedTraits = flattenObject(payload.traits)
         Object.assign(row, flattenedTraits)
@@ -88,6 +107,19 @@ export function transformToRow(payload: Payload): Record<string, unknown> {
     default:
       throw new Error(`Unknown payload type: ${(payload as { type?: string }).type}`)
   }
+}
+
+/**
+ * Transforms a Segment payload into a BigQuery row following Segment conventions
+ * @param payload - The Segment payload to transform
+ * @returns BigQuery row object with proper column names and values
+ */
+export function transformToRow(payload: Payload): Record<string, unknown> {
+  const row = createBaseRow(payload)
+
+  addUserIdentifiers(row, payload)
+  addContextFields(row, payload)
+  addTypeSpecificFields(row, payload)
 
   return row
 }

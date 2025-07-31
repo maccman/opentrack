@@ -19,6 +19,11 @@ export class IntegrationManager {
           level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         })
     }
+
+    this.logger?.info(
+      { integrationNames: integrations.map((integration) => integration.constructor.name) },
+      'Integrations loaded'
+    )
   }
 
   public async process(payload: IntegrationPayload): Promise<IntegrationResult[]> {

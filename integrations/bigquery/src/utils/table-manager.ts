@@ -1,5 +1,6 @@
 import type { BigQuery, TableSchema } from '@google-cloud/bigquery'
 
+import { CACHE_CONFIG, DATASET_CONFIG } from './constants'
 import { generateSchemaFromRow, getBaseSchemaForTable, mergeSchemas } from './schema-manager'
 
 /**
@@ -21,13 +22,32 @@ export interface SchemaCache {
   }
 }
 
+interface BigQueryError {
+  code: number
+  errors: Array<{ reason: string }>
+}
+
+/**
+ * Type guard to check if error is a BigQuery "table already exists" error
+ */
+function isBigQueryDuplicateError(error: unknown): error is BigQueryError {
+  try {
+    const err = error as BigQueryError
+    return (
+      err?.code === 409 && Array.isArray(err?.errors) && err.errors.length > 0 && err.errors[0]?.reason === 'duplicate'
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
  * Manager class for BigQuery table and schema operations
  */
 export class TableManager {
   private client: BigQuery
   private schemaCache: SchemaCache = {}
-  private readonly CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+  private readonly CACHE_TTL_MS = CACHE_CONFIG.TTL_MS
 
   constructor(client: BigQuery, _projectId: string) {
     this.client = client
@@ -45,13 +65,10 @@ export class TableManager {
 
       if (!exists) {
         await dataset.create({
-          location: 'US', // Default location, can be made configurable
+          location: DATASET_CONFIG.LOCATION,
           metadata: {
             description: `OpenTrack analytics data for ${datasetId}`,
-            labels: {
-              created_by: 'opentrack',
-              source: 'segment_integration',
-            },
+            labels: DATASET_CONFIG.LABELS,
           },
         })
         console.log(`Created BigQuery dataset: ${datasetId}`)
@@ -118,26 +135,25 @@ export class TableManager {
     tableType: string,
     sampleRow: Record<string, unknown>
   ): Promise<void> {
+    // Start with base schema for this table type
+    const baseSchema = getBaseSchemaForTable(tableType)
+
+    // Generate schema from sample row
+    const rowSchema = generateSchemaFromRow(sampleRow)
+
+    // Merge schemas to get the final schema
+    const { schema: finalSchema } = mergeSchemas(baseSchema, rowSchema)
+
+    const table = this.client.dataset(datasetId).table(tableId)
+
     try {
-      // Start with base schema for this table type
-      const baseSchema = getBaseSchemaForTable(tableType)
-
-      // Generate schema from sample row
-      const rowSchema = generateSchemaFromRow(sampleRow)
-
-      // Merge schemas to get the final schema
-      const { schema: finalSchema } = mergeSchemas(baseSchema, rowSchema)
-
-      const table = this.client.dataset(datasetId).table(tableId)
-
       await table.create({
         schema: finalSchema,
         metadata: {
           description: `OpenTrack ${tableType} data table`,
           labels: {
-            created_by: 'opentrack',
+            ...DATASET_CONFIG.LABELS,
             table_type: tableType,
-            source: 'segment_integration',
           },
         },
       })
@@ -146,7 +162,23 @@ export class TableManager {
       this.setCachedSchema(datasetId, tableId, finalSchema)
 
       console.log(`Created BigQuery table: ${datasetId}.${tableId}`)
-    } catch (error) {
+    } catch (error: unknown) {
+      // Handle the case where table already exists (409 error)
+      if (isBigQueryDuplicateError(error)) {
+        console.log(`BigQuery table already exists: ${datasetId}.${tableId}`)
+
+        // Table exists, so we should get its current schema and cache it
+        try {
+          const metadataResult = await table.getMetadata()
+          const metadata = metadataResult[0] as { schema: TableSchema }
+          this.setCachedSchema(datasetId, tableId, metadata.schema)
+        } catch (metadataError) {
+          console.warn(`Failed to cache schema for existing table: ${datasetId}.${tableId}`, metadataError)
+        }
+
+        return // Table exists, which is what we wanted
+      }
+
       console.error(`Failed to create table: ${datasetId}.${tableId}`, error)
       throw error
     }

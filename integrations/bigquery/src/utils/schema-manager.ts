@@ -1,5 +1,7 @@
 import type { TableField, TableSchema } from '@google-cloud/bigquery'
 
+import { BIGQUERY_TYPES, FIELD_MODES, TIMESTAMP_PATTERNS, TYPE_HIERARCHY, type BigQueryType } from './constants'
+
 /**
  * Utility functions for managing BigQuery schemas and type detection
  */
@@ -9,33 +11,33 @@ import type { TableField, TableSchema } from '@google-cloud/bigquery'
  * @param value - The value to analyze
  * @returns BigQuery column type string
  */
-export function detectBigQueryType(value: unknown): string {
+export function detectBigQueryType(value: unknown): BigQueryType {
   if (value === null || value === undefined) {
-    return 'STRING' // Default to STRING for null values, can be relaxed later
+    return BIGQUERY_TYPES.STRING // Default to STRING for null values, can be relaxed later
   }
 
   switch (typeof value) {
     case 'boolean':
-      return 'BOOLEAN'
+      return BIGQUERY_TYPES.BOOLEAN
     case 'number':
       // Check if it's an integer or float
-      return Number.isInteger(value) ? 'INTEGER' : 'FLOAT'
+      return Number.isInteger(value) ? BIGQUERY_TYPES.INTEGER : BIGQUERY_TYPES.FLOAT
     case 'string':
       // Check if it's a valid timestamp
       if (isValidTimestamp(value)) {
-        return 'TIMESTAMP'
+        return BIGQUERY_TYPES.TIMESTAMP
       }
-      return 'STRING'
+      return BIGQUERY_TYPES.STRING
     case 'object':
       if (value instanceof Date) {
-        return 'TIMESTAMP'
+        return BIGQUERY_TYPES.TIMESTAMP
       }
       if (Array.isArray(value)) {
-        return 'STRING' // Arrays are JSON stringified
+        return BIGQUERY_TYPES.STRING // Arrays are JSON stringified
       }
-      return 'STRING' // Objects are JSON stringified
+      return BIGQUERY_TYPES.STRING // Objects are JSON stringified
     default:
-      return 'STRING'
+      return BIGQUERY_TYPES.STRING
   }
 }
 
@@ -45,9 +47,7 @@ export function detectBigQueryType(value: unknown): string {
  * @returns True if it's a valid timestamp format
  */
 function isValidTimestamp(value: string): boolean {
-  // Check for ISO 8601 format or other common timestamp formats
-  const timestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
-  if (timestampRegex.test(value)) {
+  if (TIMESTAMP_PATTERNS.ISO_8601.test(value)) {
     const date = new Date(value)
     return !Number.isNaN(date.getTime())
   }
@@ -66,7 +66,7 @@ export function generateSchemaFromRow(row: Record<string, unknown>): TableSchema
     const field: TableField = {
       name: columnName,
       type: detectBigQueryType(value),
-      mode: 'NULLABLE', // All fields start as nullable
+      mode: FIELD_MODES.NULLABLE, // All fields start as nullable
     }
     fields.push(field)
   }
@@ -134,18 +134,17 @@ function needsTypeRelaxation(existingField: TableField, newField: TableField): b
     return false
   }
 
-  // Check if we can relax the type
   const existingType = existingField.type!
   const newType = newField.type!
 
-  // Common relaxation patterns
+  // Common relaxation patterns using constants
   const relaxationRules = [
-    ['INTEGER', 'FLOAT'], // INT can be relaxed to FLOAT
-    ['INTEGER', 'STRING'], // INT can be relaxed to STRING
-    ['FLOAT', 'STRING'], // FLOAT can be relaxed to STRING
-    ['BOOLEAN', 'STRING'], // BOOLEAN can be relaxed to STRING
-    ['TIMESTAMP', 'STRING'], // TIMESTAMP can be relaxed to STRING
-  ]
+    [BIGQUERY_TYPES.INTEGER, BIGQUERY_TYPES.FLOAT],
+    [BIGQUERY_TYPES.INTEGER, BIGQUERY_TYPES.STRING],
+    [BIGQUERY_TYPES.FLOAT, BIGQUERY_TYPES.STRING],
+    [BIGQUERY_TYPES.BOOLEAN, BIGQUERY_TYPES.STRING],
+    [BIGQUERY_TYPES.TIMESTAMP, BIGQUERY_TYPES.STRING],
+  ] as const
 
   return relaxationRules.some(([from, to]) => existingType === from && newType === to)
 }
@@ -156,19 +155,16 @@ function needsTypeRelaxation(existingField: TableField, newField: TableField): b
  * @param type2 - Second type
  * @returns The more permissive type
  */
-function relaxType(type1: string, type2: string): string {
+function relaxType(type1: string, type2: string): BigQueryType {
   if (type1 === type2) {
-    return type1
+    return type1 as BigQueryType
   }
 
-  // Type hierarchy (from most restrictive to most permissive)
-  const typeHierarchy = ['BOOLEAN', 'INTEGER', 'FLOAT', 'TIMESTAMP', 'STRING']
-
-  const index1 = typeHierarchy.indexOf(type1)
-  const index2 = typeHierarchy.indexOf(type2)
+  const index1 = TYPE_HIERARCHY.indexOf(type1 as BigQueryType)
+  const index2 = TYPE_HIERARCHY.indexOf(type2 as BigQueryType)
 
   // Return the type that's further in the hierarchy (more permissive)
-  return index1 > index2 ? type1 : type2
+  return index1 > index2 ? (type1 as BigQueryType) : (type2 as BigQueryType)
 }
 
 /**
@@ -179,37 +175,37 @@ function relaxType(type1: string, type2: string): string {
 export function getBaseSchemaForTable(tableType: string): TableSchema {
   // Common columns for all tables
   const commonFields: TableField[] = [
-    { name: 'id', type: 'STRING', mode: 'REQUIRED' },
-    { name: 'received_at', type: 'TIMESTAMP', mode: 'REQUIRED' },
-    { name: 'sent_at', type: 'TIMESTAMP', mode: 'NULLABLE' },
-    { name: 'timestamp', type: 'TIMESTAMP', mode: 'NULLABLE' },
-    { name: 'uuid_ts', type: 'TIMESTAMP', mode: 'REQUIRED' },
-    { name: 'loaded_at', type: 'TIMESTAMP', mode: 'REQUIRED' },
-    { name: 'user_id', type: 'STRING', mode: 'NULLABLE' },
-    { name: 'anonymous_id', type: 'STRING', mode: 'NULLABLE' },
+    { name: 'id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
+    { name: 'received_at', type: BIGQUERY_TYPES.TIMESTAMP, mode: FIELD_MODES.REQUIRED },
+    { name: 'sent_at', type: BIGQUERY_TYPES.TIMESTAMP, mode: FIELD_MODES.NULLABLE },
+    { name: 'timestamp', type: BIGQUERY_TYPES.TIMESTAMP, mode: FIELD_MODES.NULLABLE },
+    { name: 'uuid_ts', type: BIGQUERY_TYPES.TIMESTAMP, mode: FIELD_MODES.REQUIRED },
+    { name: 'loaded_at', type: BIGQUERY_TYPES.TIMESTAMP, mode: FIELD_MODES.REQUIRED },
+    { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+    { name: 'anonymous_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
   ]
 
   // Type-specific fields
   const typeSpecificFields: Record<string, TableField[]> = {
     tracks: [
-      { name: 'event', type: 'STRING', mode: 'REQUIRED' },
-      { name: 'event_text', type: 'STRING', mode: 'NULLABLE' },
+      { name: 'event', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
+      { name: 'event_text', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
     ],
     identifies: [
-      { name: 'user_id', type: 'STRING', mode: 'REQUIRED' }, // Override to make required
+      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
     ],
     pages: [
-      { name: 'name', type: 'STRING', mode: 'NULLABLE' },
-      { name: 'url', type: 'STRING', mode: 'NULLABLE' },
-      { name: 'path', type: 'STRING', mode: 'NULLABLE' },
-      { name: 'referrer', type: 'STRING', mode: 'NULLABLE' },
-      { name: 'search', type: 'STRING', mode: 'NULLABLE' },
-      { name: 'title', type: 'STRING', mode: 'NULLABLE' },
+      { name: 'name', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'url', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'path', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'referrer', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'search', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'title', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
     ],
-    groups: [{ name: 'group_id', type: 'STRING', mode: 'REQUIRED' }],
+    groups: [{ name: 'group_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }],
     aliases: [
-      { name: 'previous_id', type: 'STRING', mode: 'REQUIRED' },
-      { name: 'user_id', type: 'STRING', mode: 'REQUIRED' }, // Override to make required
+      { name: 'previous_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
+      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
     ],
   }
 

@@ -22,17 +22,17 @@ export class BigQueryIntegration implements Integration {
       autoTableManagement: true,
       ...config,
     }
-    this.client = new BigQuery()
+
+    this.client = new BigQuery({
+      projectId: this.config.projectId,
+    })
+
     if (this.config.autoTableManagement) {
       this.tableManager = new TableManager(this.client, this.config.projectId)
     }
   }
 
   private async insert(payload: Payload, tableName: string) {
-    if (!this.client || !this.config.datasetId) {
-      return
-    }
-
     const row = transformToRow(payload)
 
     if (this.tableManager) {
