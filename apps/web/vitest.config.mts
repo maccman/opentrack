@@ -1,9 +1,6 @@
-import { defineConfig } from 'nitro-test-utils/config'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  nitro: {
-    global: true,
-  },
   test: {
     environment: 'node',
     globals: true,

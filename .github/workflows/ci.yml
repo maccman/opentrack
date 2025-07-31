@@ -16,6 +16,9 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      - name: Prepare Nitro types
+        run: pnpm --filter @app/web prepare
+
       - name: Lint
         run: pnpm run lint
 
@@ -26,6 +29,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup
+
+      - name: Prepare Nitro types
+        run: pnpm --filter @app/web prepare
 
       - name: Typecheck
         run: pnpm run typecheck
@@ -65,6 +71,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup
+
+      - name: Prepare Nitro types
+        run: pnpm --filter @app/web prepare
 
       # As soon as tests need to be run against a database, uncomment the following steps
 
