@@ -1,0 +1,35 @@
+{
+  "name": "@app/customerio",
+  "version": "1.0.0",
+  "description": "Customer.io integration for libroseg",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@app/core": "workspace:*",
+    "@app/spec": "workspace:*",
+    "customerio-node": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "keywords": [
+    "customerio",
+    "integration",
+    "analytics",
+    "tracking"
+  ],
+  "author": "libroseg",
+  "license": "MIT"
+}
