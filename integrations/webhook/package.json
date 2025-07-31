@@ -1,0 +1,25 @@
+{
+  "name": "@integrations/webhook",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Webhook integration for the Libroseg project",
+  "main": "index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@app/spec": "workspace:*",
+    "axios": "^1.7.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

@@ -17,6 +17,7 @@
     "@app/utils": "workspace:*",
     "@integrations/bigquery": "workspace:^",
     "@integrations/customerio": "workspace:^",
+    "@integrations/webhook": "workspace:^",
     "@vercel/functions": "^1.4.0",
     "pino": "^9.7.0"
   },

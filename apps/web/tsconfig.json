@@ -16,13 +16,16 @@
       "path": "../../integrations/bigquery/tsconfig.json"
     },
     {
+      "path": "../../integrations/customerio/tsconfig.json"
+    },
+    {
+      "path": "../../integrations/webhook/tsconfig.json"
+    },
+    {
       "path": "../../packages/core/tsconfig.json"
     },
     {
       "path": "../../packages/spec/tsconfig.json"
-    },
-    {
-      "path": "../../integrations/customerio/tsconfig.json"
     },
     {
       "path": "../../packages/utils/tsconfig.json"

@@ -3,6 +3,7 @@ import { IntegrationManager } from '@app/core'
 import type { Integration } from '@app/spec'
 import { BigQueryIntegration, type BigQueryIntegrationConfig } from '@integrations/bigquery'
 import { CustomerioIntegration, type CustomerioConfig } from '@integrations/customerio'
+import { WebhookIntegration, type WebhookIntegrationConfig } from '@integrations/webhook'
 import pino from 'pino'
 
 function createIntegrations(): Integration[] {
@@ -30,6 +31,16 @@ function createIntegrations(): Integration[] {
       region: process.env.CUSTOMERIO_REGION?.toUpperCase() === 'EU' ? 'EU' : 'US',
     }
     integrations.push(new CustomerioIntegration(customerioConfig))
+  }
+
+  // Webhook Integration
+  const webhookUrl = process.env.WEBHOOK_URL
+  if (webhookUrl) {
+    const webhookConfig: WebhookIntegrationConfig = {
+      url: webhookUrl,
+      method: 'POST', // Default to POST
+    }
+    integrations.push(new WebhookIntegration(webhookConfig))
   }
 
   return integrations

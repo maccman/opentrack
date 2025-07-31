@@ -155,7 +155,7 @@ pnpm add analytics-node
 ```javascript
 import Analytics from 'analytics-node'
 
-const analytics = new Analytics('YOUR_WRITE_KEY', {
+const analytics = new Analytics('', {
   host: 'https://your-libroseg-deployment.vercel.app',
 })
 
