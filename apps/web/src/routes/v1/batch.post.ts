@@ -1,9 +1,8 @@
-import { IntegrationManager } from '@app/core'
 import { aliasEventSchema, groupEventSchema, identifyEventSchema, pageEventSchema, trackEventSchema } from '@app/spec'
 import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-const integrationManager = new IntegrationManager()
+import { integrationManager } from '@/integrations'
 
 interface BatchPayload {
   batch: Array<{

@@ -1,10 +1,9 @@
-import { IntegrationManager } from '@app/core'
 import type { AliasPayload } from '@app/spec'
 import { aliasEventSchema } from '@app/spec'
 import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-const integrationManager = new IntegrationManager()
+import { integrationManager } from '@/integrations'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<AliasPayload>(event)

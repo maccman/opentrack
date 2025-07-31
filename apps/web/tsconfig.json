@@ -20,6 +20,12 @@
     },
     {
       "path": "../../packages/spec/tsconfig.json"
+    },
+    {
+      "path": "../../integrations/customerio/tsconfig.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.json"
     }
   ]
 }

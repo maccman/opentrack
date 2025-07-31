@@ -1,9 +1,8 @@
-import { IntegrationManager } from '@app/core'
 import { pageEventSchema, type PagePayload } from '@app/spec'
 import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-const integrationManager = new IntegrationManager()
+import { integrationManager } from '@/integrations'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<PagePayload>(event)

@@ -60,9 +60,15 @@ importers:
       '@app/spec':
         specifier: workspace:*
         version: link:../../packages/spec
+      '@app/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@integrations/bigquery':
         specifier: workspace:^
         version: link:../../integrations/bigquery
+      '@integrations/customerio':
+        specifier: workspace:^
+        version: link:../../integrations/customerio
       '@vercel/functions':
         specifier: ^1.4.0
         version: 1.6.0

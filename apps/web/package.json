@@ -14,7 +14,9 @@
   "dependencies": {
     "@app/core": "workspace:*",
     "@app/spec": "workspace:*",
+    "@app/utils": "workspace:*",
     "@integrations/bigquery": "workspace:^",
+    "@integrations/customerio": "workspace:^",
     "@vercel/functions": "^1.4.0"
   },
   "devDependencies": {
