@@ -87,7 +87,7 @@ describe('Integration Interface', () => {
 
   test('should support complex integration scenarios', async () => {
     let initCalled = false
-    let eventsProcessed: string[] = []
+    const eventsProcessed: string[] = []
 
     const complexIntegration: Integration = {
       name: 'Complex Integration',

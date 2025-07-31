@@ -1,5 +1,5 @@
 import Analytics from 'analytics-node'
-import { $fetch } from 'nitro-test-utils/e2e'
+import { $fetchRaw } from 'nitro-test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
 describe('Analytics Integration Tests', () => {
@@ -185,7 +185,7 @@ describe('Analytics Integration Tests', () => {
     }
 
     // Test the endpoint directly to ensure validation works
-    const response = await $fetch('/v1/track', {
+    const response = await $fetchRaw('/v1/track', {
       method: 'POST',
       body: invalidTrackData,
     })
@@ -205,7 +205,7 @@ describe('Analytics Integration Tests', () => {
     }
 
     // Test track endpoint
-    const trackResponse = await $fetch('/v1/track', {
+    const trackResponse = await $fetchRaw('/v1/track', {
       method: 'POST',
       body: {
         ...basePayload,
@@ -217,7 +217,7 @@ describe('Analytics Integration Tests', () => {
     expect(trackResponse.data).toEqual({ success: true })
 
     // Test identify endpoint
-    const identifyResponse = await $fetch('/v1/identify', {
+    const identifyResponse = await $fetchRaw('/v1/identify', {
       method: 'POST',
       body: {
         ...basePayload,
@@ -229,7 +229,7 @@ describe('Analytics Integration Tests', () => {
     expect(identifyResponse.data).toEqual({ success: true })
 
     // Test page endpoint
-    const pageResponse = await $fetch('/v1/page', {
+    const pageResponse = await $fetchRaw('/v1/page', {
       method: 'POST',
       body: {
         ...basePayload,
@@ -241,7 +241,7 @@ describe('Analytics Integration Tests', () => {
     expect(pageResponse.data).toEqual({ success: true })
 
     // Test group endpoint
-    const groupResponse = await $fetch('/v1/group', {
+    const groupResponse = await $fetchRaw('/v1/group', {
       method: 'POST',
       body: {
         ...basePayload,
@@ -253,7 +253,7 @@ describe('Analytics Integration Tests', () => {
     expect(groupResponse.data).toEqual({ success: true })
 
     // Test alias endpoint
-    const aliasResponse = await $fetch('/v1/alias', {
+    const aliasResponse = await $fetchRaw('/v1/alias', {
       method: 'POST',
       body: {
         ...basePayload,
