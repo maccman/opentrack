@@ -1,3 +1,102 @@
+# Libroseg
+
+The purpose of this project is to create an open source slimmed down [Segment](https://segment.com). The project will emulate the exact same Segment API endpoints.
+
+The task will be to take a event, then stream it onto the 3rd party integrations. The integrations that we will initially build out are:
+
+- Customer.io
+- Google BigQuery
+
+You can self-host this app on Vercel, which should be extremely fast. We will be using Vercel functions with their new fluid compute feature.
+
+This app provides a HTTP interface that is Segment-compliant. You can take the existing segment.js JavaScript library and point them at these endpoints.
+
+## Setup
+
+1. Clone the repository
+2. Run `pnpm install`
+3. Run `pnpm dev`
+
+### Configuration
+
+1. Create a `.env` file in the root of the project.
+2. Add the following variables:
+
+```env
+# Customer.io
+CUSTOMERIO_API_KEY=your-customerio-api-key
+
+# Google BigQuery
+BIGQUERY_PROJECT_ID=your-bigquery-project-id
+BIGQUERY_DATASET=your-dataset
+BIGQUERY_TABLE=your-table
+```
+
+API Endpoints
+
+Emulates Segment’s HTTP Tracking API:
+• POST /v1/track
+• POST /v1/identify
+• POST /v1/page
+• POST /v1/group
+• POST /v1/alias
+
+Payloads and responses match the official Segment API.
+
+---
+
+## API Endpoints
+
+Emulates [Segment’s HTTP Tracking API](https://segment.com/docs/connections/sources/catalog/libraries/server/http-api/):
+
+- `POST /v1/track`
+- `POST /v1/identify`
+- `POST /v1/page`
+- `POST /v1/group`
+- `POST /v1/alias`
+
+Payloads and responses match the official Segment API.
+
+---
+
+## Authentication
+
+No authentication is required for this API. Since there's only one organization and the service is hosted on Vercel, incoming requests don't need to differentiate between different organizations or users. All API endpoints accept requests without any authentication headers or tokens.
+
+This simplifies integration and allows for immediate event tracking without the overhead of API key management or user authentication flows.
+
+---
+
+## Integrations
+
+### Customer.io
+
+Events will be forwarded as [Customer.io Track API](https://customer.io/docs/api/#operation/track) calls.  
+Requires `CUSTOMERIO_API_KEY`.
+
+### Google BigQuery
+
+Events are streamed directly into your BigQuery table.  
+Requires `BIGQUERY_PROJECT_ID`, `BIGQUERY_DATASET`, and `BIGQUERY_TABLE`.
+
+---
+
+## Example Usage
+
+Send an event:
+
+```bash
+curl -X POST http://localhost:3000/v1/track \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "userId": "123",
+        "event": "Order Completed",
+        "properties": { "revenue": 42 }
+      }'
+```
+
+---
+
 # Monorepo Scaffold
 
 This is a scaffold for a modern web application using a monorepo architecture. It's designed to provide a solid foundation for new projects, with a focus on type-safety, developer experience, and scalability.
@@ -7,7 +106,7 @@ This is a scaffold for a modern web application using a monorepo architecture. I
 This monorepo includes:
 
 - `apps/web`: An [Astro](https://astro.build/) application for the frontend.
-- `packages/api`: A [tRPC](https://trpc.io/) API for type-safe client-server communication.
+- `packages/api`: API utilities and database actions for server-side operations.
 - `packages/db`: Database schemas, migrations, and query utilities using [Kysely](https://kysely.dev/).
 - `packages/utils`: Shared utilities used across the monorepo.
 - **Authentication**: Example implementation using [better-auth](https://github.com/BetterAuth/better-auth) with GitHub as an OAuth provider.
@@ -25,7 +124,6 @@ This scaffold is specifically designed to excel with AI coding assistants and "v
 - **Rich Examples**: The codebase provides comprehensive examples of common patterns like API routing, database connections, migrations, authentication flows, and UI components that AI can learn from and replicate.
 - **Comprehensive Cursor Rules**: Pre-configured `.cursor/rules/` directory with detailed guidelines for:
   - Database patterns and Kysely type helpers
-  - tRPC and React Query integration patterns
   - React component conventions and shadcn/ui usage
   - TypeScript best practices and naming conventions
   - Environment variable management

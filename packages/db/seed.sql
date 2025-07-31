@@ -1,3 +1,0 @@
--- Seed data for database
-
-

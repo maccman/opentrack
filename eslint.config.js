@@ -1,13 +1,9 @@
 import { defineESLintConfig } from '@ocavue/eslint-config'
 
-export default defineESLintConfig(
-  {
-    react: true,
+export default defineESLintConfig({
+  ignores: ['**/*.md', '.nitro/'],
+  rules: {
+    // Require curly braces for all control statements
+    curly: ['error', 'all'],
   },
-  {
-    rules: {
-      // Require curly braces for all control statements
-      curly: ['error', 'all'],
-    },
-  },
-)
+})

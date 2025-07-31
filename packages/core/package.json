@@ -1,0 +1,26 @@
+{
+  "name": "@app/core",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Core utilities for the Libroseg project",
+  "main": "index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@app/spec": "workspace:*",
+    "@app/utils": "workspace:*",
+    "@integrations/bigquery": "workspace:*",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

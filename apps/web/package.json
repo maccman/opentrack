@@ -1,10 +1,19 @@
 {
+  "name": "@app/web",
+  "version": "0.0.0",
   "private": true,
+  "description": "Web application frontend",
   "scripts": {
     "build": "nitro build",
     "dev": "nitro dev",
     "prepare": "nitro prepare",
     "preview": "node .output/server/index.mjs"
+  },
+  "dependencies": {
+    "@app/core": "workspace:*",
+    "@app/spec": "workspace:*",
+    "@integrations/bigquery": "workspace:^",
+    "@vercel/functions": "^1.4.0"
   },
   "devDependencies": {
     "nitropack": "latest"

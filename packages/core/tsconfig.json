@@ -1,0 +1,17 @@
+{
+  "extends": "@ocavue/tsconfig/dom/app.json",
+  "compilerOptions": {
+    "types": ["vitest/globals", "node"]
+  },
+  "references": [
+    {
+        "path": "../../integrations/bigquery/tsconfig.json"
+    },
+    {
+        "path": "../spec/tsconfig.json"
+    },
+    {
+        "path": "../utils/tsconfig.json"
+    }
+]
+}

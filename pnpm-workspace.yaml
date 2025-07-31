@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - apps/*
+  - integrations/*
 
 linkWorkspacePackages: deep
 ignoreWorkspaceRootCheck: true

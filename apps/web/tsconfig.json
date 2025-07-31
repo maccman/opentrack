@@ -5,21 +5,27 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["src/*"]
     },
     "verbatimModuleSyntax": false
   },
-  "include": ["src/**/*", ".nitro/types/nitro.d.ts", "nitro.config.ts", "vitest.config.mts", "tests/**/*"],
+  "include": [
+    "src/**/*",
+    ".nitro/types/nitro.d.ts",
+    "nitro.config.ts",
+    "vitest.config.mts",
+    "tests/**/*"
+  ],
   "exclude": ["node_modules", "dist"],
   "references": [
     {
-      "path": "../../packages/api/tsconfig.json"
+      "path": "../../integrations/bigquery/tsconfig.json"
     },
     {
-      "path": "../../packages/db/tsconfig.json"
+      "path": "../../packages/core/tsconfig.json"
     },
     {
-      "path": "../../packages/utils/tsconfig.json"
+      "path": "../../packages/spec/tsconfig.json"
     }
   ]
 }
