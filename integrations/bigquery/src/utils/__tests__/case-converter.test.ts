@@ -5,7 +5,7 @@ describe('convertToSnakeCase', () => {
   it('should convert camelCase to snake_case', () => {
     expect(convertToSnakeCase('camelCase')).toBe('camel_case')
     expect(convertToSnakeCase('firstName')).toBe('first_name')
-    expect(convertToSnakeCase('userID')).toBe('user_i_d')
+    expect(convertToSnakeCase('userID')).toBe('user_id')
   })
 
   it('should convert PascalCase to snake_case', () => {
@@ -22,7 +22,7 @@ describe('convertToSnakeCase', () => {
 
   it('should handle single words', () => {
     expect(convertToSnakeCase('user')).toBe('user')
-    expect(convertToSnakeCase('ID')).toBe('i_d')
+    expect(convertToSnakeCase('ID')).toBe('id')
     expect(convertToSnakeCase('a')).toBe('a')
   })
 
@@ -31,15 +31,15 @@ describe('convertToSnakeCase', () => {
   })
 
   it('should handle strings with numbers', () => {
-    expect(convertToSnakeCase('user123')).toBe('user123')
-    expect(convertToSnakeCase('userId2')).toBe('user_id2')
-    expect(convertToSnakeCase('API2Version')).toBe('a_p_i2_version')
+    expect(convertToSnakeCase('user123')).toBe('user_123')
+    expect(convertToSnakeCase('userId2')).toBe('user_id_2')
+    expect(convertToSnakeCase('API2Version')).toBe('api_2_version')
   })
 
   it('should handle consecutive uppercase letters', () => {
-    expect(convertToSnakeCase('XMLParser')).toBe('x_m_l_parser')
-    expect(convertToSnakeCase('HTTPSConnection')).toBe('h_t_t_p_s_connection')
-    expect(convertToSnakeCase('URLPath')).toBe('u_r_l_path')
+    expect(convertToSnakeCase('XMLParser')).toBe('xml_parser')
+    expect(convertToSnakeCase('HTTPSConnection')).toBe('https_connection')
+    expect(convertToSnakeCase('URLPath')).toBe('url_path')
   })
 })
 

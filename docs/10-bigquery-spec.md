@@ -4,6 +4,8 @@
 
 This document describes how the Libroseg BigQuery integration stores data, following Segment's BigQuery warehouse schema conventions for compatibility and consistency.
 
+The integration includes **automatic table and schema management**, meaning you don't need to manually create tables or manage schema changes - everything is handled automatically as data flows through the system.
+
 ## Dataset and Table Structure
 
 ### Dataset Naming
@@ -220,6 +222,63 @@ CREATE TABLE dataset.users (
 );
 ```
 
+## Automatic Table and Schema Management
+
+### Key Features
+
+The BigQuery integration automatically handles:
+
+1. **Dataset Creation**: Creates the dataset if it doesn't exist
+2. **Table Creation**: Creates tables on first data insertion with appropriate base schema
+3. **Schema Evolution**: Adds new columns when new properties are discovered
+4. **Type Relaxation**: Automatically widens column types when needed (e.g., INTEGER → FLOAT → STRING)
+5. **Caching**: Caches table schemas in memory to reduce BigQuery API calls
+
+### Schema Evolution Examples
+
+#### Adding New Columns
+
+When new properties are discovered, columns are automatically added:
+
+```javascript
+// First event creates table with these columns
+track('Purchase', { product: 'Widget', price: 99.99 })
+// → Creates columns: product (STRING), price (FLOAT)
+
+// Later event adds new column automatically
+track('Purchase', { product: 'Gadget', price: 149.99, category: 'Electronics' })
+// → Adds column: category (STRING)
+```
+
+#### Type Relaxation
+
+When data types change, columns are automatically widened:
+
+```javascript
+// First event: user_count stored as INTEGER
+identify({ user_count: 42 })
+
+// Later event: user_count becomes FLOAT (INTEGER → FLOAT)
+identify({ user_count: 42.5 })
+
+// Later event: user_count becomes STRING (FLOAT → STRING)
+identify({ user_count: 'many' })
+```
+
+### Performance Optimization
+
+- **Schema caching**: Table schemas are cached in memory for 5 minutes to reduce API calls
+- **Batch operations**: Multiple table operations are handled efficiently
+- **Automatic retries**: Built-in retry logic for transient BigQuery errors
+
+### Required Permissions
+
+Your BigQuery service account needs these permissions:
+
+- **BigQuery Data Editor**: To create/modify tables and insert data
+- **BigQuery Job User**: To run queries and jobs
+- **BigQuery User**: To access datasets
+
 ## Best Practices
 
 1. **Table Names**: Use snake_case for all table and column names
@@ -228,6 +287,7 @@ CREATE TABLE dataset.users (
 4. **Data Types**: Infer from first non-null value received
 5. **Nested Data**: Flatten objects, stringify arrays
 6. **Reserved Names**: Never override Segment's reserved column names
+7. **Auto-Management**: Let the integration handle table/schema creation automatically
 
 ## Compatibility Notes
 

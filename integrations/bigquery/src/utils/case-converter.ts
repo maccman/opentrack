@@ -1,15 +1,14 @@
 /**
  * Utility functions for converting strings between different cases
  */
+import { snakeCase } from 'lodash-es'
 
 /**
  * Converts a string from camelCase or PascalCase to snake_case
  * @param str - The string to convert
  * @returns The snake_case version of the string
  */
-export function convertToSnakeCase(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`).replace(/^_/, '')
-}
+export { snakeCase as convertToSnakeCase }
 
 /**
  * Converts an event name to a valid BigQuery table name
