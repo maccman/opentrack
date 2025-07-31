@@ -317,4 +317,24 @@ describe('getBaseSchemaForTable', () => {
       mode: 'REQUIRED',
     })
   })
+
+  it('should support payload type keys', () => {
+    const trackSchema = getBaseSchemaForTable('track')
+    expect(trackSchema.fields).toContainEqual({
+      name: 'event',
+      type: 'STRING',
+      mode: 'REQUIRED',
+    })
+
+    const pageSchema = getBaseSchemaForTable('page')
+    expect(pageSchema.fields).toContainEqual({
+      name: 'name',
+      type: 'STRING',
+      mode: 'NULLABLE',
+    })
+
+    const identifySchema = getBaseSchemaForTable('identify')
+    const userIdField = identifySchema.fields!.find((f) => f.name === 'user_id')
+    expect(userIdField?.mode).toBe('REQUIRED')
+  })
 })

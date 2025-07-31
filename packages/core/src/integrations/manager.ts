@@ -17,6 +17,9 @@ export class IntegrationManager {
         pino({
           name: 'IntegrationManager',
           level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+          serializers: {
+            error: pino.stdSerializers.err,
+          },
         })
     }
 
@@ -86,8 +89,7 @@ export class IntegrationManager {
           {
             integration: integrationName,
             duration,
-            error: errorObj.message,
-            stack: errorObj.stack,
+            error: errorObj,
           },
           'Integration failed'
         )

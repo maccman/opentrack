@@ -185,15 +185,34 @@ export function getBaseSchemaForTable(tableType: string): TableSchema {
     { name: 'anonymous_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
   ]
 
-  // Type-specific fields
+  // Type-specific fields (using payload types as keys)
   const typeSpecificFields: Record<string, TableField[]> = {
+    track: [
+      { name: 'event', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
+      { name: 'event_text', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+    ],
+    identify: [
+      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
+    ],
+    page: [
+      { name: 'name', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'url', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'path', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'referrer', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'search', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'title', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+    ],
+    group: [{ name: 'group_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }],
+    alias: [
+      { name: 'previous_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
+      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
+    ],
+    // Legacy table name support (for compatibility)
     tracks: [
       { name: 'event', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
       { name: 'event_text', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
     ],
-    identifies: [
-      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
-    ],
+    identifies: [{ name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }],
     pages: [
       { name: 'name', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'url', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
@@ -205,12 +224,12 @@ export function getBaseSchemaForTable(tableType: string): TableSchema {
     groups: [{ name: 'group_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }],
     aliases: [
       { name: 'previous_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
-      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
+      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
     ],
   }
 
-  // For event-specific tables (not tracks, identifies, etc.), use track-like schema
-  const specificFields = typeSpecificFields[tableType] || typeSpecificFields.tracks
+  // For event-specific tables (not standard payload types), use track-like schema
+  const specificFields = typeSpecificFields[tableType] || typeSpecificFields.track
 
   // Merge common fields with type-specific fields
   const allFields = [...commonFields]
