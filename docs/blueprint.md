@@ -39,7 +39,6 @@ graph TD
 #### Phase 1: Core Plumbing & API Endpoints
 
 1.  **API Endpoints (`apps/web/src/routes/v1/`)**:
-
     - The five API route handlers in Nitro are already implemented for each Segment endpoint:
       - `track.post.ts`
       - `identify.post.ts`
@@ -56,7 +55,6 @@ graph TD
 #### Phase 2: Extensible Integration Framework
 
 1.  **Integration Interface (`packages/spec/src/integration.ts`)**:
-
     - A generic `Integration` interface is defined in the `packages/spec` module. All third-party integrations must implement this interface, ensuring a consistent contract.
 
     ```typescript
@@ -75,7 +73,6 @@ graph TD
     ```
 
 2.  **Integration Manager (`packages/core/src/integrations/`)**:
-
     - A singleton manager, composed of `BaseIntegrationManager` and a concrete `IntegrationManager`, handles all available integrations.
     - **Registry**: It maintains a list of all integration classes (e.g., `[BigQueryIntegration, CustomerIOIntegration]`).
     - **Initialization**: On startup, it filters the registry to only enabled integrations (by calling `isEnabled()`) and initializes them.

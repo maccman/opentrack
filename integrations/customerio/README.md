@@ -334,17 +334,14 @@ const customerio = new CustomerioIntegration({
 ### Common Issues
 
 1. **Authentication Errors**
-
    - Verify your Site ID and API Key
    - Check that you're using the correct region
 
 2. **Invalid Email Errors**
-
    - Ensure email addresses are valid format
    - Use the built-in email validation
 
 3. **Rate Limiting**
-
    - The integration automatically retries with exponential backoff
    - Consider reducing request frequency if persistent
 
