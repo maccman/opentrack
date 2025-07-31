@@ -7,8 +7,8 @@ describe('Analytics Integration Tests', () => {
 
   // Helper function to create Analytics client pointing to test server
   const createAnalyticsClient = () => {
-    // Test server runs on port 3001
-    const baseURL = 'http://localhost:3001'
+    // Test server runs on port 3000 (as shown in test output)
+    const baseURL = 'http://localhost:3000'
     return new Analytics('test-write-key', {
       host: baseURL,
       // Don't set path here - analytics-node will append /v1/<endpoint>
