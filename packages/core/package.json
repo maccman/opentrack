@@ -16,6 +16,7 @@
     "@app/spec": "workspace:*",
     "@app/utils": "workspace:*",
     "@integrations/bigquery": "workspace:*",
+    "@integrations/customerio": "workspace:*",
     "zod": "^3.24.3"
   },
   "devDependencies": {

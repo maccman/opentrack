@@ -101,6 +101,9 @@ importers:
       '@app/spec':
         specifier: workspace:*
         version: link:../../packages/spec
+      '@app/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       customerio-node:
         specifier: ^3.2.0
         version: 3.5.1
@@ -126,6 +129,9 @@ importers:
       '@integrations/bigquery':
         specifier: workspace:*
         version: link:../../integrations/bigquery
+      '@integrations/customerio':
+        specifier: workspace:*
+        version: link:../../integrations/customerio
       zod:
         specifier: ^3.24.3
         version: 3.24.3

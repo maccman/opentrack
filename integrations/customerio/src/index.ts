@@ -1,4 +1,5 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
+import { assertString } from '@app/utils'
 import { TrackClient } from 'customerio-node'
 
 import { CustomerioErrorHandler, CustomerioTransformer, RegionManager, type CustomerioRegion } from './utils'
@@ -17,7 +18,12 @@ export class CustomerioIntegration implements Integration {
   private config: CustomerioConfig
   private regionManager: RegionManager
 
-  constructor(config: CustomerioConfig) {
+  constructor(
+    config: CustomerioConfig = { siteId: process.env.CUSTOMERIO_SITE_ID!, apiKey: process.env.CUSTOMERIO_API_KEY! }
+  ) {
+    assertString(config.siteId, 'siteId is required')
+    assertString(config.apiKey, 'apiKey is required')
+
     this.config = {
       timeout: 10000,
       retryAttempts: 3,
@@ -36,8 +42,10 @@ export class CustomerioIntegration implements Integration {
   /**
    * Check if the integration is enabled
    */
-  public isEnabled(): boolean {
-    return !!(this.config.siteId && this.config.apiKey)
+  public static isEnabled(): boolean {
+    const siteId = process.env.CUSTOMERIO_SITE_ID
+    const apiKey = process.env.CUSTOMERIO_API_KEY
+    return !!(siteId && apiKey)
   }
 
   /**

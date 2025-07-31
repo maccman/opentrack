@@ -37,13 +37,13 @@ describe('TableManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    mockTable = createMockTable() as any
-    mockDataset = createMockDataset() as any
-    mockBigQuery = createMockBigQuery() as any
+    mockTable = createMockTable() as unknown as Table
+    mockDataset = createMockDataset() as unknown as Dataset
+    mockBigQuery = createMockBigQuery() as unknown as BigQuery
 
     // Setup the chain: bigquery.dataset().table()
-    ;(mockBigQuery.dataset as any).mockReturnValue(mockDataset)
-    ;(mockDataset.table as any).mockReturnValue(mockTable)
+    ;(mockBigQuery.dataset as ReturnType<typeof vi.fn>).mockReturnValue(mockDataset)
+    ;(mockDataset.table as ReturnType<typeof vi.fn>).mockReturnValue(mockTable)
 
     tableManager = new TableManager(mockBigQuery, 'test-project')
   })
@@ -51,7 +51,7 @@ describe('TableManager', () => {
   describe('ensureDatasetExists', () => {
     it('should create dataset if it does not exist', async () => {
       // Dataset doesn't exist
-      ;(mockDataset.exists as any).mockResolvedValue([false])
+      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
 
       await tableManager.ensureDatasetExists('test-dataset')
 
@@ -71,7 +71,7 @@ describe('TableManager', () => {
 
     it('should not create dataset if it already exists', async () => {
       // Dataset exists
-      ;(mockDataset.exists as any).mockResolvedValue([true])
+      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
 
       await tableManager.ensureDatasetExists('test-dataset')
 
@@ -88,8 +88,8 @@ describe('TableManager', () => {
       }
 
       // Table exists
-      ;(mockTable.exists as any).mockResolvedValue([true])
-      ;(mockTable.getMetadata as any).mockResolvedValue([{ schema: mockSchema }])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
 
       const tableInfo = await tableManager.getTableInfo('test-dataset', 'test-table')
 
@@ -102,7 +102,7 @@ describe('TableManager', () => {
 
     it('should return non-existent info when table does not exist', async () => {
       // Table doesn't exist
-      ;(mockTable.exists as any).mockResolvedValue([false])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
 
       const tableInfo = await tableManager.getTableInfo('test-dataset', 'test-table')
 
@@ -125,7 +125,7 @@ describe('TableManager', () => {
       expect(mockDataset.table).toHaveBeenCalledWith('test-table')
       expect(mockTable.create).toHaveBeenCalled()
 
-      const createCall = (mockTable.create as any).mock.calls[0][0]
+      const createCall = (mockTable.create as ReturnType<typeof vi.fn>).mock.calls[0][0]
       expect(createCall.schema).toBeDefined()
       expect(createCall.schema.fields).toBeDefined()
       expect(createCall.metadata.description).toBe('Libroseg tracks data table')
@@ -153,7 +153,7 @@ describe('TableManager', () => {
       expect(updated).toBe(true)
       expect(mockTable.setMetadata).toHaveBeenCalled()
 
-      const setMetadataCall = (mockTable.setMetadata as any).mock.calls[0][0]
+      const setMetadataCall = (mockTable.setMetadata as ReturnType<typeof vi.fn>).mock.calls[0][0]
       expect(setMetadataCall.schema.fields).toHaveLength(3)
     })
 
@@ -180,8 +180,8 @@ describe('TableManager', () => {
   describe('ensureTableReady', () => {
     it('should create table when it does not exist', async () => {
       // Dataset exists, table doesn't
-      ;(mockDataset.exists as any).mockResolvedValue([true])
-      ;(mockTable.exists as any).mockResolvedValue([false])
+      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
 
       const sampleRow = { id: 'test', event: 'Test Event' }
 
@@ -198,9 +198,9 @@ describe('TableManager', () => {
       }
 
       // Dataset and table exist
-      ;(mockDataset.exists as any).mockResolvedValue([true])
-      ;(mockTable.exists as any).mockResolvedValue([true])
-      ;(mockTable.getMetadata as any).mockResolvedValue([{ schema: existingSchema }])
+      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: existingSchema }])
 
       const sampleRow = { id: 'test', new_field: 'new' } // Has new field
 
@@ -216,8 +216,8 @@ describe('TableManager', () => {
   describe('insertWithAutoSchema', () => {
     it('should handle table creation and data insertion', async () => {
       // Dataset exists, table doesn't
-      ;(mockDataset.exists as any).mockResolvedValue([true])
-      ;(mockTable.exists as any).mockResolvedValue([false])
+      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
 
       const rows = [
         { id: 'test1', event: 'Test Event' },
@@ -246,8 +246,8 @@ describe('TableManager', () => {
         fields: [{ name: 'id', type: 'STRING', mode: 'REQUIRED' }],
       }
 
-      ;(mockTable.exists as any).mockResolvedValue([true])
-      ;(mockTable.getMetadata as any).mockResolvedValue([{ schema: mockSchema }])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
 
       // First call
       const tableInfo1 = await tableManager.getTableInfo('test-dataset', 'test-table')
@@ -265,8 +265,8 @@ describe('TableManager', () => {
         fields: [{ name: 'id', type: 'STRING', mode: 'REQUIRED' }],
       }
 
-      ;(mockTable.exists as any).mockResolvedValue([true])
-      ;(mockTable.getMetadata as any).mockResolvedValue([{ schema: mockSchema }])
+      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
 
       // First call to populate cache
       await tableManager.getTableInfo('test-dataset', 'test-table')

@@ -14,16 +14,16 @@ export class BigQueryIntegration implements Integration {
   private autoTableManagement = process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT === 'true'
 
   constructor() {
-    if (this.isEnabled()) {
-      this.client = new BigQuery()
-      if (this.autoTableManagement) {
-        this.tableManager = new TableManager(this.client, this.projectId!)
-      }
+    this.client = new BigQuery()
+    if (this.autoTableManagement) {
+      this.tableManager = new TableManager(this.client, this.projectId!)
     }
   }
 
-  public isEnabled(): boolean {
-    return !!(this.projectId && this.datasetId)
+  public static isEnabled(): boolean {
+    const projectId = process.env.BIGQUERY_PROJECT_ID
+    const datasetId = process.env.BIGQUERY_DATASET
+    return !!(projectId && datasetId)
   }
 
   private async insert(payload: Payload, tableName: string) {

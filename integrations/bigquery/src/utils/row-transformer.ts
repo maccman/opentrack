@@ -34,7 +34,7 @@ export function transformToRow(payload: Payload): Record<string, unknown> {
 
   // Flatten context properties
   if (payload.context) {
-    const flattenedContext = flattenObject(payload.context, 'context')
+    const flattenedContext = flattenObject(payload.context as Record<string, unknown>, 'context')
     Object.assign(row, flattenedContext)
   }
 

@@ -56,7 +56,8 @@ describe('BigQueryIntegration', () => {
       const integration = new BigQueryIntegration()
       const payload = createTrackPayload()
       await integration.track(payload)
-      const mockTableManagerInstance = (TableManager as any).mock.instances[0]
+      const MockedTableManager = vi.mocked(TableManager)
+      const mockTableManagerInstance = MockedTableManager.mock.instances[0] as any
       expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(2)
     })
   })
@@ -77,7 +78,8 @@ describe('BigQueryIntegration', () => {
       await integration.track(payload)
 
       // Ensure TableManager was not used
-      expect((TableManager as any).mock.instances).toHaveLength(0)
+      const MockedTableManager = vi.mocked(TableManager)
+      expect(MockedTableManager.mock.instances).toHaveLength(0)
 
       // Ensure direct client was used
       expect(BigQuery).toHaveBeenCalledTimes(1)

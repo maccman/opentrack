@@ -6,6 +6,9 @@
   "references": [
     {
       "path": "../../packages/spec/tsconfig.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.json"
     }
   ]
 }

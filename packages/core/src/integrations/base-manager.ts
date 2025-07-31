@@ -2,11 +2,15 @@ import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayl
 
 type SegmentPayload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
+type IntegrationClass = (new () => Integration) & {
+  isEnabled(): boolean
+}
+
 export class BaseIntegrationManager {
   private enabledIntegrations: Integration[] = []
 
-  constructor(integrations: (new () => Integration)[]) {
-    this.enabledIntegrations = integrations.map((I) => new I()).filter((i) => i.isEnabled())
+  constructor(integrations: IntegrationClass[]) {
+    this.enabledIntegrations = integrations.filter((I) => I.isEnabled()).map((I) => new I())
   }
 
   public async process(payload: SegmentPayload) {

@@ -2,7 +2,6 @@ import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPay
 
 export interface Integration {
   name: string
-  isEnabled(): boolean
   init?(): Promise<void>
 
   track(payload: TrackPayload): Promise<void>

@@ -7,7 +7,6 @@ describe('Integration Interface', () => {
     // Mock implementation of Integration interface
     const mockIntegration: Integration = {
       name: 'Test Integration',
-      isEnabled: () => true,
       track: (_payload: TrackPayload) => Promise.resolve(),
       identify: (_payload: IdentifyPayload) => Promise.resolve(),
       page: (_payload: PagePayload) => Promise.resolve(),
@@ -16,7 +15,6 @@ describe('Integration Interface', () => {
     }
 
     expect(mockIntegration.name).toBe('Test Integration')
-    expect(typeof mockIntegration.isEnabled).toBe('function')
     expect(typeof mockIntegration.track).toBe('function')
     expect(typeof mockIntegration.identify).toBe('function')
     expect(typeof mockIntegration.page).toBe('function')
@@ -24,10 +22,27 @@ describe('Integration Interface', () => {
     expect(typeof mockIntegration.alias).toBe('function')
   })
 
+  test('should define IntegrationConstructor with static isEnabled', () => {
+    // Mock implementation of IntegrationConstructor
+    class MockIntegration implements Integration {
+      name = 'Test Integration'
+      static isEnabled(): boolean {
+        return true
+      }
+      track = (_payload: TrackPayload) => Promise.resolve()
+      identify = (_payload: IdentifyPayload) => Promise.resolve()
+      page = (_payload: PagePayload) => Promise.resolve()
+      group = (_payload: GroupPayload) => Promise.resolve()
+      alias = (_payload: AliasPayload) => Promise.resolve()
+    }
+
+    expect(typeof MockIntegration.isEnabled).toBe('function')
+    expect(MockIntegration.isEnabled()).toBe(true)
+  })
+
   test('should accept proper payload types for each method', async () => {
     const mockIntegration: Integration = {
       name: 'Test Integration',
-      isEnabled: () => true,
       track: (payload: TrackPayload) => {
         expect(payload.type).toBe('track')
         expect(payload.event).toBeDefined()
@@ -88,28 +103,30 @@ describe('Integration Interface', () => {
     })
   })
 
-  test('should handle disabled integrations', () => {
-    const disabledIntegration: Integration = {
-      name: 'Disabled Integration',
-      isEnabled: () => false,
-      track: (_payload: TrackPayload) => {
+  test('should handle disabled integrations via static method', () => {
+    class DisabledIntegration implements Integration {
+      name = 'Disabled Integration'
+      static isEnabled(): boolean {
+        return false
+      }
+      track = (_payload: TrackPayload) => {
         throw new Error('Should not be called when disabled')
-      },
-      identify: (_payload: IdentifyPayload) => {
+      }
+      identify = (_payload: IdentifyPayload) => {
         throw new Error('Should not be called when disabled')
-      },
-      page: (_payload: PagePayload) => {
+      }
+      page = (_payload: PagePayload) => {
         throw new Error('Should not be called when disabled')
-      },
-      group: (_payload: GroupPayload) => {
+      }
+      group = (_payload: GroupPayload) => {
         throw new Error('Should not be called when disabled')
-      },
-      alias: (_payload: AliasPayload) => {
+      }
+      alias = (_payload: AliasPayload) => {
         throw new Error('Should not be called when disabled')
-      },
+      }
     }
 
-    expect(disabledIntegration.isEnabled()).toBe(false)
+    expect(DisabledIntegration.isEnabled()).toBe(false)
   })
 
   test('should support complex integration scenarios', async () => {
@@ -118,7 +135,6 @@ describe('Integration Interface', () => {
 
     const complexIntegration: Integration = {
       name: 'Complex Integration',
-      isEnabled: () => true,
       init: () => Promise.resolve(),
       track: (payload: TrackPayload) => {
         eventsProcessed.push(`track:${payload.event}`)
@@ -191,7 +207,6 @@ describe('Integration Interface', () => {
   test('should handle error cases gracefully', async () => {
     const errorIntegration: Integration = {
       name: 'Error Integration',
-      isEnabled: () => true,
       track: (_payload: TrackPayload) => {
         throw new Error('Track failed')
       },

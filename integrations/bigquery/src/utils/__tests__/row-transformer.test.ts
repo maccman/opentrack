@@ -319,12 +319,17 @@ describe('transformToRow', () => {
 
   describe('error handling', () => {
     it('should throw error for unknown payload types', () => {
-      const invalidPayload = {
+      interface InvalidPayload {
+        type: 'unknown'
+        messageId: string
+      }
+
+      const invalidPayload: InvalidPayload = {
         type: 'unknown',
         messageId: 'test',
-      } as any
+      }
 
-      expect(() => transformToRow(invalidPayload)).toThrow('Unknown payload type: unknown')
+      expect(() => transformToRow(invalidPayload as any)).toThrow('Unknown payload type: unknown')
     })
   })
 
