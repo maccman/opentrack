@@ -47,7 +47,7 @@ function createIntegrations(): Integration[] {
 }
 
 function createLoggerConfig(): LoggerConfig | undefined {
-  const debugEnabled = process.env.LIBROSEG_DEBUG === 'true' || process.env.NODE_ENV === 'development'
+  const debugEnabled = process.env.OPENTRACK_DEBUG === 'true' || process.env.NODE_ENV === 'development'
 
   if (!debugEnabled) {
     return undefined
@@ -55,7 +55,7 @@ function createLoggerConfig(): LoggerConfig | undefined {
 
   const logger = pino({
     name: 'IntegrationManager',
-    level: process.env.LIBROSEG_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+    level: process.env.OPENTRACK_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   })
 
   return {

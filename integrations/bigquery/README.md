@@ -1,6 +1,6 @@
-# BigQuery Integration for Libroseg
+# BigQuery Integration for OpenTrack
 
-This package provides a BigQuery integration for Libroseg, designed to replicate Segment's BigQuery destination behavior. It handles sending analytics events to BigQuery, with robust support for automatic table and schema management.
+This package provides a BigQuery integration for OpenTrack, designed to replicate Segment's BigQuery destination behavior. It handles sending analytics events to BigQuery, with robust support for automatic table and schema management.
 
 ## Features
 

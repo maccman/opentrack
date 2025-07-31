@@ -1,6 +1,6 @@
-# Libroseg Analytics Client Library
+# OpenTrack Analytics Client Library
 
-A Segment-compatible client-side analytics library that integrates with Libroseg's v1 API endpoints. This library provides the same interface as Segment's Analytics.js but sends data to your own Libroseg instance.
+A Segment-compatible client-side analytics library that integrates with OpenTrack's v1 API endpoints. This library provides the same interface as Segment's Analytics.js but sends data to your own OpenTrack instance.
 
 ## Features
 
@@ -42,9 +42,9 @@ pnpm dev
     <script src="path/to/analytics.js"></script>
 
     <script>
-      // Initialize with your Libroseg instance
+      // Initialize with your OpenTrack instance
       analytics.load('your-write-key', {
-        host: 'https://your-libroseg-instance.com',
+        host: 'https://your-opentrack-instance.com',
         debug: false,
       })
     </script>
@@ -106,7 +106,7 @@ analytics.alias('user-123', 'anonymous-456')
 
 ```javascript
 analytics.load('your-write-key', {
-  host: 'https://your-libroseg-instance.com', // Your Libroseg endpoint
+  host: 'https://your-opentrack-instance.com', // Your OpenTrack endpoint
   flushAt: 20, // Flush when queue reaches this size
   flushInterval: 10000, // Flush interval in milliseconds
   debug: false, // Enable debug logging
@@ -123,7 +123,7 @@ analytics.load('your-write-key', {
 
 | Option           | Type    | Default                    | Description                                    |
 | ---------------- | ------- | -------------------------- | ---------------------------------------------- |
-| `host`           | string  | `'http://localhost:3000'`  | Your Libroseg instance URL                     |
+| `host`           | string  | `'http://localhost:3000'`  | Your OpenTrack instance URL                     |
 | `writeKey`       | string  | `''`                       | Write key for authentication                   |
 | `flushAt`        | number  | `20`                       | Number of events to queue before auto-flushing |
 | `flushInterval`  | number  | `10000`                    | Time in milliseconds between auto-flushes      |
@@ -170,9 +170,9 @@ The build process generates `dist/analytics.js` from the TypeScript source in `s
 - Automatically tracks an initial page view
 - Flushes events on page unload
 
-## Integration with Libroseg
+## Integration with OpenTrack
 
-This library sends events to the following Libroseg endpoints:
+This library sends events to the following OpenTrack endpoints:
 
 - `POST /v1/track` - For track events
 - `POST /v1/identify` - For identify events

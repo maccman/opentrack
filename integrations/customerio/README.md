@@ -1,6 +1,6 @@
 # Customer.io Integration
 
-A comprehensive Customer.io integration for libroseg that implements all core tracking methods using the Pipelines API.
+A comprehensive Customer.io integration for opentrack that implements all core tracking methods using the Pipelines API.
 
 ## Features
 

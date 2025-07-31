@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "description": "Webhook integration for the Libroseg project",
+  "description": "Webhook integration for the OpenTrack project",
   "main": "index.ts",
   "exports": {
     ".": "./src/index.ts"

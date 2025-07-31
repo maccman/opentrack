@@ -1,4 +1,4 @@
-// Libroseg Analytics - Segment-compatible client library
+// OpenTrack Analytics - Segment-compatible client library
 
 import { createConfig } from './config'
 import type {

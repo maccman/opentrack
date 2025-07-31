@@ -1,6 +1,6 @@
-# Libroseg API Routes Documentation
+# OpenTrack API Routes Documentation
 
-This document provides comprehensive documentation for all Libroseg API routes under `/v1/`. Libroseg implements a Segment-compatible HTTP Tracking API that enables real-time event collection and processing.
+This document provides comprehensive documentation for all OpenTrack API routes under `/v1/`. OpenTrack implements a Segment-compatible HTTP Tracking API that enables real-time event collection and processing.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This document provides comprehensive documentation for all Libroseg API routes u
 
 ## Overview
 
-Libroseg provides five core tracking methods plus a batch endpoint:
+OpenTrack provides five core tracking methods plus a batch endpoint:
 
 | Method   | Endpoint       | Purpose                                  |
 | -------- | -------------- | ---------------------------------------- |
@@ -34,11 +34,11 @@ Libroseg provides five core tracking methods plus a batch endpoint:
 
 ## Authentication
 
-Currently, Libroseg routes do not require authentication (unlike Segment's write key requirement). This makes it suitable for self-hosted deployments where access is controlled at the infrastructure level.
+Currently, OpenTrack routes do not require authentication (unlike Segment's write key requirement). This makes it suitable for self-hosted deployments where access is controlled at the infrastructure level.
 
 ```bash
 # No Authorization header required
-curl -X POST https://your-libroseg-deployment.vercel.app/v1/track \
+curl -X POST https://your-opentrack-deployment.vercel.app/v1/track \
   -H "Content-Type: application/json" \
   -d '{"userId": "user123", "event": "Button Clicked"}'
 ```
@@ -520,10 +520,10 @@ curl -X POST https://your-deployment.vercel.app/v1/track \
 import Analytics from 'analytics-node'
 
 const analytics = new Analytics('dummy-key', {
-  host: 'https://your-libroseg-deployment.vercel.app',
+  host: 'https://your-opentrack-deployment.vercel.app',
 })
 
-// Events will be sent to your Libroseg instance
+// Events will be sent to your OpenTrack instance
 analytics.track({
   userId: 'user123',
   event: 'Product Purchased',
@@ -571,5 +571,5 @@ curl -X POST https://your-deployment.vercel.app/v1/track \
 
 - Review individual method documentation for detailed field specifications
 - Configure integrations in the `IntegrationManager`
-- Implement client-side SDKs pointing to your Libroseg deployment
+- Implement client-side SDKs pointing to your OpenTrack deployment
 - Monitor integration processing and error rates

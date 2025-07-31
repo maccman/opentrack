@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "description": "Core utilities for the Libroseg project",
+  "description": "Core utilities for the OpenTrack project",
   "main": "index.ts",
   "exports": {
     ".": "./src/index.ts"

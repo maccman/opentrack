@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how the Libroseg BigQuery integration stores data, following Segment's BigQuery warehouse schema conventions for compatibility and consistency.
+This document describes how the OpenTrack BigQuery integration stores data, following Segment's BigQuery warehouse schema conventions for compatibility and consistency.
 
 The integration supports **optional automatic table and schema management**. When enabled, you don't need to manually create tables or manage schema changes.
 
@@ -40,7 +40,7 @@ If `BIGQUERY_AUTO_TABLE_MANAGEMENT` is set to `false`:
 
 ### Table Structure
 
-Libroseg creates separate tables for each type of Segment call:
+OpenTrack creates separate tables for each type of Segment call:
 
 | Table Name     | Purpose                   | Description                                          |
 | -------------- | ------------------------- | ---------------------------------------------------- |

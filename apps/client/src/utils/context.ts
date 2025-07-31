@@ -14,7 +14,7 @@ export function buildContext(): ContextInfo {
     },
     userAgent: navigator.userAgent,
     library: {
-      name: 'libroseg-analytics',
+      name: 'opentrack-analytics',
       version: '1.0.0',
     },
     screen: {

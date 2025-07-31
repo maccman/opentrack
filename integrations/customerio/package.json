@@ -3,8 +3,8 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "description": "Customer.io integration for the Libroseg project",
-  "author": "libroseg",
+  "description": "Customer.io integration for the OpenTrack project",
+  "author": "opentrack",
   "license": "MIT",
   "keywords": [
     "customerio",

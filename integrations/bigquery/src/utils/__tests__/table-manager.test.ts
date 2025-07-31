@@ -71,9 +71,9 @@ describe('TableManager', () => {
       expect(datasetCreateSpy).toHaveBeenCalledWith({
         location: 'US',
         metadata: {
-          description: 'Libroseg analytics data for test-dataset',
+          description: 'OpenTrack analytics data for test-dataset',
           labels: {
-            created_by: 'libroseg',
+            created_by: 'opentrack',
             source: 'segment_integration',
           },
         },
@@ -142,7 +142,7 @@ describe('TableManager', () => {
       }
       expect(createCall.schema).toBeDefined()
       expect(createCall.schema.fields).toBeDefined()
-      expect(createCall.metadata.description).toBe('Libroseg tracks data table')
+      expect(createCall.metadata.description).toBe('OpenTrack tracks data table')
       expect(createCall.metadata.labels.table_type).toBe('tracks')
     })
   })

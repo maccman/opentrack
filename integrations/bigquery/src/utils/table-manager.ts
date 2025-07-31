@@ -47,9 +47,9 @@ export class TableManager {
         await dataset.create({
           location: 'US', // Default location, can be made configurable
           metadata: {
-            description: `Libroseg analytics data for ${datasetId}`,
+            description: `OpenTrack analytics data for ${datasetId}`,
             labels: {
-              created_by: 'libroseg',
+              created_by: 'opentrack',
               source: 'segment_integration',
             },
           },
@@ -133,9 +133,9 @@ export class TableManager {
       await table.create({
         schema: finalSchema,
         metadata: {
-          description: `Libroseg ${tableType} data table`,
+          description: `OpenTrack ${tableType} data table`,
           labels: {
-            created_by: 'libroseg',
+            created_by: 'opentrack',
             table_type: tableType,
             source: 'segment_integration',
           },

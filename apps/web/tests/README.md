@@ -1,10 +1,10 @@
 # Web App Integration Tests
 
-This directory contains integration tests for the Libroseg web application using the official Segment Node.js package.
+This directory contains integration tests for the OpenTrack web application using the official Segment Node.js package.
 
 ## Overview
 
-The integration tests demonstrate that the Libroseg web server is fully compatible with the Segment ecosystem by:
+The integration tests demonstrate that the OpenTrack web server is fully compatible with the Segment ecosystem by:
 
 1. **Using the official Segment analytics-node package** - The same package that developers use to send analytics data to Segment.com
 2. **Testing all analytics endpoints** - Covers track, identify, page, group, and alias events
@@ -64,4 +64,4 @@ Each event type is validated using the project's Zod schemas and then processed 
 
 ## Significance
 
-These tests prove that Libroseg can serve as a drop-in replacement for Segment's HTTP API, allowing existing applications using the Segment Node.js package to switch to Libroseg with minimal configuration changes.
+These tests prove that OpenTrack can serve as a drop-in replacement for Segment's HTTP API, allowing existing applications using the Segment Node.js package to switch to OpenTrack with minimal configuration changes.

@@ -1,6 +1,6 @@
-# Webhook Integration for Libroseg
+# Webhook Integration for OpenTrack
 
-This package provides a flexible webhook integration for Libroseg, allowing you to send analytics events to any HTTP endpoint. It supports all Segment event types (track, identify, page, group, alias) and includes robust error handling and retry logic.
+This package provides a flexible webhook integration for OpenTrack, allowing you to send analytics events to any HTTP endpoint. It supports all Segment event types (track, identify, page, group, alias) and includes robust error handling and retry logic.
 
 ## Features
 
@@ -239,10 +239,10 @@ WEBHOOK_VALIDATE_SSL=false
 
 ### Debugging
 
-Enable debug logging by setting the Libroseg debug environment variable:
+Enable debug logging by setting the OpenTrack debug environment variable:
 
 ```bash
-LIBROSEG_DEBUG=true
+OPENTRACK_DEBUG=true
 ```
 
 ## Example Webhook Receivers

@@ -27,7 +27,7 @@ export class WebhookIntegration implements Integration {
       timeout: this.config.timeout,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Libroseg-Webhook/1.0.0',
+        'User-Agent': 'OpenTrack-Webhook/1.0.0',
         ...this.config.headers,
       },
       // SSL validation
@@ -173,7 +173,7 @@ export class WebhookIntegration implements Integration {
         messageId: 'test-message-id',
         timestamp: new Date().toISOString(),
         data: {
-          message: 'Libroseg webhook connection test',
+          message: 'OpenTrack webhook connection test',
         },
         integrations: {
           webhook: {
@@ -215,7 +215,7 @@ export class WebhookIntegration implements Integration {
     // Update axios instance headers
     this.client.defaults.headers.common = {
       'Content-Type': 'application/json',
-      'User-Agent': 'Libroseg-Webhook/1.0.0',
+      'User-Agent': 'OpenTrack-Webhook/1.0.0',
       ...headers,
     }
   }

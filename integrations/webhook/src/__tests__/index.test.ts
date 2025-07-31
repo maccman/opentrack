@@ -60,7 +60,7 @@ describe('WebhookIntegration', () => {
         timeout: 10000, // default timeout
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Libroseg-Webhook/1.0.0',
+          'User-Agent': 'OpenTrack-Webhook/1.0.0',
         },
         httpsAgent: undefined, // validateSsl is true by default
       })
@@ -81,7 +81,7 @@ describe('WebhookIntegration', () => {
         timeout: 10000,
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Libroseg-Webhook/1.0.0',
+          'User-Agent': 'OpenTrack-Webhook/1.0.0',
           Authorization: 'Bearer token123',
           'X-Custom-Header': 'custom-value',
         },
@@ -101,7 +101,7 @@ describe('WebhookIntegration', () => {
         timeout: 10000,
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Libroseg-Webhook/1.0.0',
+          'User-Agent': 'OpenTrack-Webhook/1.0.0',
         },
         httpsAgent: { rejectUnauthorized: false },
       })
@@ -350,7 +350,7 @@ describe('WebhookIntegration', () => {
           type: 'test',
           messageId: 'test-message-id',
           data: {
-            message: 'Libroseg webhook connection test',
+            message: 'OpenTrack webhook connection test',
           },
         }),
       })
@@ -395,7 +395,7 @@ describe('WebhookIntegration', () => {
 
       expect(mockAxiosInstance.defaults.headers.common).toMatchObject({
         'Content-Type': 'application/json',
-        'User-Agent': 'Libroseg-Webhook/1.0.0',
+        'User-Agent': 'OpenTrack-Webhook/1.0.0',
         Authorization: 'Bearer new-token',
       })
     })

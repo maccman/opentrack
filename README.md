@@ -1,6 +1,6 @@
-# Libroseg
+# OpenTrack
 
-**Libroseg** is a lightweight, open-source Segment alternative designed for high-performance event tracking and seamless integration with modern data stacks. Built to be deployed on serverless platforms like Vercel, it offers a Segment-compliant API that can process and route analytics events to various destinations with minimal latency.
+**OpenTrack** is a lightweight, open-source Segment alternative designed for high-performance event tracking and seamless integration with modern data stacks. Built to be deployed on serverless platforms like Vercel, it offers a Segment-compliant API that can process and route analytics events to various destinations with minimal latency.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@
 ## Features
 
 - **Segment-Compliant API**: Drop-in replacement for Segment’s HTTP Tracking API. Use existing Segment SDKs with minimal configuration changes.
-- **High Performance**: Built for serverless environments, Libroseg provides rapid response times by processing events asynchronously.
+- **High Performance**: Built for serverless environments, OpenTrack provides rapid response times by processing events asynchronously.
 - **Extensible Integration Framework**: Easily add new destinations for your analytics data.
 - **Pre-built Integrations**: Out-of-the-box support for Google BigQuery and Customer.io.
 - **Self-Hostable**: Deploy on Vercel or any other Node.js-compatible serverless platform for full control over your data pipeline.
@@ -32,7 +32,7 @@
 
 ## Architecture
 
-Libroseg is designed for speed and reliability. It leverages a serverless architecture to handle incoming API requests and processes events asynchronously.
+OpenTrack is designed for speed and reliability. It leverages a serverless architecture to handle incoming API requests and processes events asynchronously.
 
 Here’s a high-level overview of the data flow:
 
@@ -61,11 +61,11 @@ graph TD
     end
 ```
 
-This asynchronous approach ensures that your application receives a fast response, while Libroseg reliably delivers the data to your configured integrations.
+This asynchronous approach ensures that your application receives a fast response, while OpenTrack reliably delivers the data to your configured integrations.
 
 ## API Endpoints
 
-Libroseg emulates Segment’s HTTP Tracking API, providing the following endpoints:
+OpenTrack emulates Segment’s HTTP Tracking API, providing the following endpoints:
 
 - `POST /v1/track`
 - `POST /v1/identify`
@@ -77,7 +77,7 @@ Payloads and responses for these endpoints are compatible with the official Segm
 
 ## Integrations
 
-Libroseg comes with pre-built support for the following integrations:
+OpenTrack comes with pre-built support for the following integrations:
 
 ### Google BigQuery
 
@@ -93,7 +93,7 @@ Libroseg comes with pre-built support for the following integrations:
 
 ## Getting Started
 
-Follow these steps to set up and run your own instance of Libroseg.
+Follow these steps to set up and run your own instance of OpenTrack.
 
 ### Prerequisites
 
@@ -105,8 +105,8 @@ Follow these steps to set up and run your own instance of Libroseg.
 1.  **Clone the repository**:
 
     ```bash
-    git clone https://github.com/riven-io/libroseg.git
-    cd libroseg
+    git clone https://github.com/riven-io/opentrack.git
+    cd opentrack
     ```
 
 2.  **Install dependencies**:
@@ -136,11 +136,11 @@ Follow these steps to set up and run your own instance of Libroseg.
 
 ## Usage
 
-You can send data to your Libroseg instance using any Segment-compatible library or by making direct HTTP requests.
+You can send data to your OpenTrack instance using any Segment-compatible library or by making direct HTTP requests.
 
 ### Using `analytics-node`
 
-The official `analytics-node` package can be used to send events to your Libroseg instance by pointing it to your deployment's URL.
+The official `analytics-node` package can be used to send events to your OpenTrack instance by pointing it to your deployment's URL.
 
 #### Installation
 
@@ -154,7 +154,7 @@ pnpm add analytics-node
 import Analytics from 'analytics-node'
 
 const analytics = new Analytics('', {
-  host: 'https://your-libroseg-deployment.vercel.app',
+  host: 'https://your-opentrack-deployment.vercel.app',
 })
 
 // Identify a user
@@ -193,7 +193,7 @@ analytics.page({
 You can also send events directly to the API endpoints using `curl` or any other HTTP client.
 
 ```bash
-curl -X POST https://your-libroseg-deployment.vercel.app/v1/track \
+curl -X POST https://your-opentrack-deployment.vercel.app/v1/track \
   -H 'Content-Type: application/json' \
   -d '{
         "userId": "user-123",

@@ -1,6 +1,6 @@
-# Libroseg Architectural Blueprint
+# OpenTrack Architectural Blueprint
 
-This document outlines the architecture and implementation plan for Libroseg, an open-source Segment alternative designed to be deployed on Vercel.
+This document outlines the architecture and implementation plan for OpenTrack, an open-source Segment alternative designed to be deployed on Vercel.
 
 ### 1. High-Level Architecture
 
