@@ -20,33 +20,22 @@ To use the webhook integration, you need to configure the following environment 
 
 - `WEBHOOK_URL`: The HTTP endpoint where events will be sent.
 
-### Optional Variables
-
-- `WEBHOOK_METHOD`: HTTP method to use for requests (default: `POST`)
-  - Supported values: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
-- `WEBHOOK_HEADERS`: JSON string of custom headers to include in requests
-- `WEBHOOK_TIMEOUT`: Request timeout in milliseconds (default: `10000`)
-- `WEBHOOK_RETRY_ATTEMPTS`: Number of retry attempts for failed requests (default: `3`)
-- `WEBHOOK_INCLUDE_PAYLOAD`: Whether to include full payload in requests (default: `true`)
-- `WEBHOOK_VALIDATE_SSL`: Whether to validate SSL certificates (default: `true`)
-
 ### Example Environment Configuration
 
 ```bash
 # Basic configuration
 WEBHOOK_URL=https://your-webhook-endpoint.com/events
-WEBHOOK_METHOD=POST
-
-# Authentication
-WEBHOOK_HEADERS='{"Authorization":"Bearer your-api-token","X-API-Key":"your-api-key"}'
-
-# Performance tuning
-WEBHOOK_TIMEOUT=5000
-WEBHOOK_RETRY_ATTEMPTS=2
-
-# Development settings (disable SSL validation)
-WEBHOOK_VALIDATE_SSL=false
 ```
+
+The integration uses sensible defaults:
+
+- **Method**: `POST`
+- **Timeout**: `10 seconds`
+- **Retry Attempts**: `3`
+- **Include Full Payload**: `true`
+- **SSL Validation**: `true`
+
+For advanced configuration needs, you can create a custom integration instance programmatically with additional options.
 
 ## Payload Format
 

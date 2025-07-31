@@ -87,7 +87,7 @@ export class WebhookTransformer {
 
     // Add context if present
     if ('context' in payload && payload.context) {
-      basePayload.context = payload.context
+      basePayload.context = payload.context as Record<string, unknown>
     }
 
     // Transform based on event type
