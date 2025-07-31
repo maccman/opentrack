@@ -30,7 +30,7 @@ export class AnalyticsTransport {
       if (navigator.sendBeacon) {
         const blob = new Blob([data], { type: 'application/json' })
         const success = navigator.sendBeacon(endpoint, blob)
-        
+
         if (!success) {
           if (this.config.debug) {
             console.warn('[Analytics] sendBeacon failed, trying fetch fallback')

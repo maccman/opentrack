@@ -25,13 +25,13 @@ class Analytics {
   private config: Required<AnalyticsOptions>
   private storage: AnalyticsStorage
   private transport: AnalyticsTransport
-  private _userId: string | null = null
-  private _anonymousId: string
-  private _traits: Record<string, unknown> = {}
-  private _readyCallbacks: Array<() => void> = []
-  private _isReady = false
-  private _queue: EventPayload[] = []
-  private _flushTimer: number | null = null
+  private userId: string | null = null
+  private anonymousId: string
+  private traits: Record<string, unknown> = {}
+  private readyCallbacks: Array<() => void> = []
+  private isReady = false
+  private queue: EventPayload[] = []
+  private flushTimer: number | null = null
 
   constructor(options: AnalyticsOptions = {}) {
     this.config = createConfig(options)
@@ -50,16 +50,16 @@ class Analytics {
     })
 
     // Initialize user identity
-    this._anonymousId = this.storage.getAnonymousId() || generateId()
-    this._userId = this.storage.getUserId()
-    this._traits = this.storage.getTraits()
+    this.anonymousId = this.storage.getAnonymousId() || generateId()
+    this.userId = this.storage.getUserId()
+    this.traits = this.storage.getTraits()
 
     // Store anonymous ID if new
     if (!this.storage.getAnonymousId()) {
-      this.storage.setAnonymousId(this._anonymousId)
+      this.storage.setAnonymousId(this.anonymousId)
     }
 
-    this._isReady = true
+    this.isReady = true
     this.processReadyCallbacks()
   }
 
@@ -80,16 +80,16 @@ class Analytics {
   }
 
   ready(callback: () => void): void {
-    if (this._isReady) {
+    if (this.isReady) {
       callback()
     } else {
-      this._readyCallbacks.push(callback)
+      this.readyCallbacks.push(callback)
     }
   }
 
   private processReadyCallbacks(): void {
-    this._readyCallbacks.forEach((callback) => callback())
-    this._readyCallbacks = []
+    this.readyCallbacks.forEach((callback) => callback())
+    this.readyCallbacks = []
   }
 
   // Core tracking methods
@@ -114,13 +114,13 @@ class Analytics {
     }
 
     if (userId) {
-      this._userId = userId
+      this.userId = userId
       this.storage.setUserId(userId)
     }
 
     if (traits) {
-      this._traits = { ...this._traits, ...traits }
-      this.storage.setTraits(this._traits)
+      this.traits = { ...this.traits, ...traits }
+      this.storage.setTraits(this.traits)
     }
 
     const payload: IdentifyPayload = {
@@ -183,14 +183,14 @@ class Analytics {
     const payload: AliasPayload = {
       type: 'alias' as const,
       userId,
-      previousId: previousId || this._userId || this._anonymousId,
+      previousId: previousId || this.userId || this.anonymousId,
       timestamp: basePayload.timestamp,
       context: basePayload.context,
       messageId: basePayload.messageId,
     }
 
     // Update current user ID
-    this._userId = userId
+    this.userId = userId
     this.storage.setUserId(userId)
 
     this.enqueue(payload)
@@ -199,34 +199,34 @@ class Analytics {
   // User identity management
   user(): User {
     return {
-      id: () => this._userId,
-      anonymousId: () => this._anonymousId,
-      traits: () => ({ ...this._traits }),
+      id: () => this.userId,
+      anonymousId: () => this.anonymousId,
+      traits: () => ({ ...this.traits }),
     }
   }
 
   reset(): void {
-    this._userId = null
-    this._anonymousId = generateId()
-    this._traits = {}
+    this.userId = null
+    this.anonymousId = generateId()
+    this.traits = {}
 
     this.storage.clear()
-    this.storage.setAnonymousId(this._anonymousId)
+    this.storage.setAnonymousId(this.anonymousId)
   }
 
   // Queue and flush management
   flush(): void {
-    if (this._queue.length === 0) {
+    if (this.queue.length === 0) {
       return
     }
 
-    const events = [...this._queue]
-    this._queue = []
+    const events = [...this.queue]
+    this.queue = []
 
     // Clear flush timer
-    if (this._flushTimer) {
-      clearTimeout(this._flushTimer)
-      this._flushTimer = null
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
     }
 
     // Send events
@@ -236,8 +236,8 @@ class Analytics {
   // Private methods
   private buildBasePayload(options?: Record<string, unknown>) {
     return {
-      userId: this._userId || undefined,
-      anonymousId: this._anonymousId,
+      userId: this.userId || undefined,
+      anonymousId: this.anonymousId,
       timestamp: new Date().toISOString(),
       messageId: generateMessageId(),
       context: buildContext(),
@@ -246,21 +246,21 @@ class Analytics {
   }
 
   private enqueue(payload: EventPayload): void {
-    this._queue.push(payload)
+    this.queue.push(payload)
 
     if (this.config.debug) {
       console.log('[Analytics] Enqueued event:', payload)
     }
 
     // Auto-flush if queue is full
-    if (this._queue.length >= this.config.flushAt) {
+    if (this.queue.length >= this.config.flushAt) {
       this.flush()
       return
     }
 
     // Schedule flush if not already scheduled
-    if (!this._flushTimer) {
-      this._flushTimer = window.setTimeout(() => {
+    if (!this.flushTimer) {
+      this.flushTimer = window.setTimeout(() => {
         this.flush()
       }, this.config.flushInterval)
     }

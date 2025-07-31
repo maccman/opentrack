@@ -11,6 +11,7 @@ A Segment-compatible client-side analytics library that integrates with Libroseg
 - **TypeScript Support**: Full TypeScript definitions included
 - **Modular Architecture**: Clean separation of concerns with utility modules
 - **Configurable Storage**: Customizable localStorage keys and prefixes
+- **Cryptographically Secure**: Uses `crypto.getRandomValues()` for secure ID generation
 - **Lightweight**: ~6KB minified and gzipped
 
 ## Development
@@ -109,7 +110,7 @@ analytics.load('your-write-key', {
   flushAt: 20, // Flush when queue reaches this size
   flushInterval: 10000, // Flush interval in milliseconds
   debug: false, // Enable debug logging
-  
+
   // Storage configuration
   storagePrefix: 'analytics_', // Prefix for localStorage keys
   userIdKey: 'analytics_user_id', // Custom key for user ID storage
@@ -120,17 +121,17 @@ analytics.load('your-write-key', {
 
 #### Configuration Reference
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `host` | string | `'http://localhost:3000'` | Your Libroseg instance URL |
-| `writeKey` | string | `''` | Write key for authentication |
-| `flushAt` | number | `20` | Number of events to queue before auto-flushing |
-| `flushInterval` | number | `10000` | Time in milliseconds between auto-flushes |
-| `debug` | boolean | `false` | Enable console logging for debugging |
-| `storagePrefix` | string | `'analytics_'` | Prefix for localStorage keys |
-| `userIdKey` | string | `'analytics_user_id'` | localStorage key for user ID |
-| `anonymousIdKey` | string | `'analytics_anonymous_id'` | localStorage key for anonymous ID |
-| `traitsKey` | string | `'analytics_traits'` | localStorage key for user traits |
+| Option           | Type    | Default                    | Description                                    |
+| ---------------- | ------- | -------------------------- | ---------------------------------------------- |
+| `host`           | string  | `'http://localhost:3000'`  | Your Libroseg instance URL                     |
+| `writeKey`       | string  | `''`                       | Write key for authentication                   |
+| `flushAt`        | number  | `20`                       | Number of events to queue before auto-flushing |
+| `flushInterval`  | number  | `10000`                    | Time in milliseconds between auto-flushes      |
+| `debug`          | boolean | `false`                    | Enable console logging for debugging           |
+| `storagePrefix`  | string  | `'analytics_'`             | Prefix for localStorage keys                   |
+| `userIdKey`      | string  | `'analytics_user_id'`      | localStorage key for user ID                   |
+| `anonymousIdKey` | string  | `'analytics_anonymous_id'` | localStorage key for anonymous ID              |
+| `traitsKey`      | string  | `'analytics_traits'`       | localStorage key for user traits               |
 
 **Note:** If you provide a custom `storagePrefix`, the individual key names will be automatically updated unless explicitly overridden.
 
@@ -204,4 +205,5 @@ src/
 - **Storage Module**: Handles all localStorage operations with configurable keys
 - **Transport Module**: Manages HTTP requests with beacon API and fetch fallback
 - **Context Builder**: Automatically captures browser and page information
+- **ID Generator**: Cryptographically secure UUID generation with Math.random fallback
 - **Configuration**: Centralized config management with intelligent defaults
