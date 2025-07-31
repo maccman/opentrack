@@ -6,12 +6,12 @@ import { integrationManager } from '@/integrations'
 
 /**
  * POST /v1/page
- * 
+ *
  * Records page views and screen navigation. This endpoint tracks when users visit pages
  * on your website or navigate between screens in your application.
- * 
+ *
  * @route POST /v1/page
- * 
+ *
  * @param {PagePayload} body - The page payload containing page view information
  * @param {string} [body.userId] - User identifier (required if anonymousId not provided)
  * @param {string} [body.anonymousId] - Anonymous user identifier (required if userId not provided)
@@ -27,12 +27,12 @@ import { integrationManager } from '@/integrations'
  * @param {string} [body.timestamp] - Optional. ISO 8601 timestamp of when the event occurred
  * @param {string} [body.messageId] - Optional. Unique identifier for this message
  * @param {object} [body.integrations] - Optional. Integration-specific settings
- * 
- * @returns {Promise<{success: true} | {error: string, details: object[]}>} 
+ *
+ * @returns {Promise<{success: true} | {error: string, details: object[]}>}
  *   Success response with {success: true} or error response with validation details
- * 
+ *
  * @throws {400} Bad Request - When payload validation fails or required fields are missing
- * 
+ *
  * @example
  * ```typescript
  * // Request body
@@ -49,13 +49,13 @@ import { integrationManager } from '@/integrations'
  *   },
  *   "timestamp": "2025-01-15T14:30:00.000Z"
  * }
- * 
+ *
  * // Success response
  * {
  *   "success": true
  * }
  * ```
- * 
+ *
  * @example
  * ```bash
  * curl -X POST https://your-deployment.vercel.app/v1/page \

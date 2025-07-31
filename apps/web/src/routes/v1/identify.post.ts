@@ -6,12 +6,12 @@ import { integrationManager } from '@/integrations'
 
 /**
  * POST /v1/identify
- * 
+ *
  * Sets user traits and associates anonymous activity with known users. This endpoint is typically
  * called when a user signs up, logs in, or updates their profile information.
- * 
+ *
  * @route POST /v1/identify
- * 
+ *
  * @param {IdentifyPayload} body - The identify payload containing user information
  * @param {string} [body.userId] - User identifier (required if anonymousId not provided)
  * @param {string} [body.anonymousId] - Anonymous user identifier (required if userId not provided)
@@ -25,12 +25,12 @@ import { integrationManager } from '@/integrations'
  * @param {string} [body.timestamp] - Optional. ISO 8601 timestamp of when the event occurred
  * @param {string} [body.messageId] - Optional. Unique identifier for this message
  * @param {object} [body.integrations] - Optional. Integration-specific settings
- * 
- * @returns {Promise<{success: true} | {error: string, details: object[]}>} 
+ *
+ * @returns {Promise<{success: true} | {error: string, details: object[]}>}
  *   Success response with {success: true} or error response with validation details
- * 
+ *
  * @throws {400} Bad Request - When payload validation fails or required fields are missing
- * 
+ *
  * @example
  * ```typescript
  * // Request body
@@ -47,13 +47,13 @@ import { integrationManager } from '@/integrations'
  *   },
  *   "timestamp": "2025-01-15T14:30:00.000Z"
  * }
- * 
+ *
  * // Success response
  * {
  *   "success": true
  * }
  * ```
- * 
+ *
  * @example
  * ```bash
  * curl -X POST https://your-deployment.vercel.app/v1/identify \

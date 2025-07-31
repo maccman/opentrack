@@ -19,28 +19,28 @@ interface BatchPayload {
 
 /**
  * POST /v1/batch
- * 
+ *
  * Sends multiple events in a single request for improved performance. Each event in the batch
  * is validated against its respective schema and processed asynchronously. Supports partial
  * success where some events may fail while others succeed.
- * 
+ *
  * @route POST /v1/batch
- * 
+ *
  * @param {BatchPayload} body - The batch payload containing an array of events
  * @param {Array} body.batch - Required. Array of events to process
  * @param {string} body.batch[].type - Required. Event type (track, identify, page, group, alias)
- * 
+ *
  * @returns {Promise<BatchSuccessResponse | BatchErrorResponse>}
  *   Success response with processing summary or error response with details
- * 
+ *
  * @typedef BatchSuccessResponse
  * @property {true} success - Indicates successful processing
  * @property {number} processed - Number of successfully processed events
  * @property {number} total - Total number of events in the batch
  * @property {Array} [errors] - Array of errors for failed events (if any partial failures)
- * 
+ *
  * @throws {400} Bad Request - When batch array is missing/invalid or no events could be processed
- * 
+ *
  * @example
  * ```typescript
  * // Request body
@@ -56,7 +56,7 @@ interface BatchPayload {
  *     },
  *     {
  *       "type": "track",
- *       "userId": "user_12345", 
+ *       "userId": "user_12345",
  *       "event": "Product Purchased",
  *       "properties": {
  *         "productId": "widget_001",
@@ -65,7 +65,7 @@ interface BatchPayload {
  *     }
  *   ]
  * }
- * 
+ *
  * // Success response
  * {
  *   "success": true,
@@ -73,7 +73,7 @@ interface BatchPayload {
  *   "total": 2,
  *   "errors": []
  * }
- * 
+ *
  * // Partial success response
  * {
  *   "success": true,
@@ -88,7 +88,7 @@ interface BatchPayload {
  *   ]
  * }
  * ```
- * 
+ *
  * @example
  * ```bash
  * curl -X POST https://your-deployment.vercel.app/v1/batch \
