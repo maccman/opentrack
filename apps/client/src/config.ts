@@ -3,19 +3,19 @@
 import type { AnalyticsOptions } from './types'
 
 export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
-  writeKey: '',
-  host: '',
-  flushAt: 20,
-  flushInterval: 10000, // 10 seconds
-  debug: false,
-  storagePrefix: 'analytics_',
-  userIdKey: 'analytics_user_id',
-  anonymousIdKey: 'analytics_anonymous_id',
-  traitsKey: 'analytics_traits',
+  writeKey: '', // Not used
+  host: '', // Defaults to the current domain
+  flushAt: 20, // Flush after 20 events
+  flushInterval: 10000, // Flush every 10 seconds
+  debug: false, // Debug mode
+  storagePrefix: 'analytics_', // Prefix for localStorage keys
+  userIdKey: 'analytics_user_id', // localStorage key for user ID
+  anonymousIdKey: 'analytics_anonymous_id', // localStorage key for anonymous ID
+  traitsKey: 'analytics_traits', // localStorage key for user traits
   useBeacon: true, // Use sendBeacon by default for reliability
   timeout: 5000, // 5 second timeout
   retries: 2, // 2 retry attempts
-  retryDelay: 1000, // 1 second base delay
+  retryDelay: 1000, // 1 second base delay for retries
 }
 
 /**
