@@ -1,35 +1,221 @@
-# OpenTrack Analytics Client Library
+# OpenTrack Analytics
 
-A Segment-compatible client-side analytics library that integrates with OpenTrack's v1 API endpoints. This library provides the same interface as Segment's Analytics.js but sends data to your own OpenTrack instance.
+A Segment-compatible client-side analytics library for OpenTrack. This library provides the same interface as Segment's Analytics.js but sends data to your own OpenTrack instance.
 
 ## Features
 
 - **Segment-Compatible API**: Drop-in replacement for Segment's Analytics.js
+- **Universal Support**: Works in browser, Node.js, and SSR environments (Next.js, Astro, etc.)
+- **Multiple Build Formats**: ESM, CommonJS, UMD, and IIFE builds included
+- **TypeScript Support**: Full TypeScript definitions included
 - **Browser Beacon API**: Uses `navigator.sendBeacon()` for reliable event delivery
 - **Automatic Identity Management**: Persists user identity across sessions using localStorage
 - **Event Queuing**: Automatic batching and flushing of events
-- **TypeScript Support**: Full TypeScript definitions included
 - **Modular Architecture**: Clean separation of concerns with utility modules
 - **Configurable Storage**: Customizable localStorage keys and prefixes
 - **Cryptographically Secure**: Uses `crypto.getRandomValues()` for secure ID generation
 - **Lightweight**: ~6KB minified and gzipped
 
-## Development
+## Installation
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build the analytics.js file
-pnpm build
-
-# Start development server (for testing)
-pnpm dev
+npm install opentrack-analytics
+# or
+yarn add opentrack-analytics
+# or
+pnpm add opentrack-analytics
 ```
 
 ## Usage
 
-### Basic Setup
+### Framework-Specific Setup
+
+#### Next.js (App Router)
+
+```typescript
+// app/lib/analytics.ts
+import analytics from 'opentrack-analytics'
+
+analytics.load('your-write-key', {
+  host: 'https://your-opentrack-instance.com',
+  debug: process.env.NODE_ENV === 'development',
+})
+
+export default analytics
+
+// app/components/Analytics.tsx
+'use client'
+import { useEffect } from 'react'
+import analytics from '../lib/analytics'
+
+export default function Analytics() {
+  useEffect(() => {
+    // Track page view
+    analytics.page()
+  }, [])
+
+  return null
+}
+
+// app/layout.tsx
+import Analytics from './components/Analytics'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+```
+
+#### Next.js (Pages Router)
+
+```typescript
+// lib/analytics.ts
+import analytics from 'opentrack-analytics'
+
+analytics.load('your-write-key', {
+  host: 'https://your-opentrack-instance.com',
+  debug: process.env.NODE_ENV === 'development',
+})
+
+export default analytics
+
+// pages/_app.tsx
+import type { AppProps } from 'next/app'
+import { useRouter } from 'next/router'
+import { useEffect } from 'react'
+import analytics from '../lib/analytics'
+
+export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter()
+
+  useEffect(() => {
+    const handleRouteChange = (url: string) => {
+      analytics.page()
+    }
+
+    router.events.on('routeChangeComplete', handleRouteChange)
+    return () => router.events.off('routeChangeComplete', handleRouteChange)
+  }, [router.events])
+
+  return <Component {...pageProps} />
+}
+```
+
+#### Astro
+
+```typescript
+---
+// src/components/Analytics.astro
+---
+<script>
+  import analytics from 'opentrack-analytics'
+
+  analytics.load('your-write-key', {
+    host: 'https://your-opentrack-instance.com',
+    debug: import.meta.env.DEV,
+  })
+
+  // Track page view
+  analytics.page()
+</script>
+
+<!-- layouts/Layout.astro -->
+---
+import Analytics from '../components/Analytics.astro'
+---
+<html lang="en">
+  <head>
+    <!-- head content -->
+  </head>
+  <body>
+    <slot />
+    <Analytics />
+  </body>
+</html>
+```
+
+#### SvelteKit
+
+```typescript
+// src/lib/analytics.ts
+import analytics from 'opentrack-analytics'
+
+analytics.load('your-write-key', {
+  host: 'https://your-opentrack-instance.com',
+  debug: import.meta.env.DEV,
+})
+
+export default analytics
+
+// src/app.html
+<script>
+  import { page } from '$app/stores'
+  import { onMount } from 'svelte'
+  import analytics from '$lib/analytics'
+
+  onMount(() => {
+    analytics.page()
+  })
+
+  // Track route changes
+  $: if ($page.url) {
+    analytics.page()
+  }
+</script>
+```
+
+#### Vue.js / Nuxt.js
+
+```typescript
+// plugins/analytics.client.ts (Nuxt 3)
+import analytics from 'opentrack-analytics'
+
+export default defineNuxtPlugin(() => {
+  analytics.load('your-write-key', {
+    host: 'https://your-opentrack-instance.com',
+    debug: process.dev,
+  })
+
+  // Track initial page
+  analytics.page()
+
+  return {
+    provide: {
+      analytics,
+    },
+  }
+})
+
+// composables/useAnalytics.ts
+export const useAnalytics = () => {
+  const { $analytics } = useNuxtApp()
+  return $analytics
+}
+```
+
+#### Server-Safe Usage
+
+For server-side rendering, you can use the server-safe import:
+
+```typescript
+// This won't break in SSR environments
+import analytics from 'opentrack-analytics/server'
+
+// Or conditionally import
+const analytics = process.browser ? await import('opentrack-analytics') : await import('opentrack-analytics/server')
+```
+
+#### Direct Browser Usage (Script Tag)
 
 ```html
 <!DOCTYPE html>
@@ -39,7 +225,7 @@ pnpm dev
   </head>
   <body>
     <!-- Load the analytics library -->
-    <script src="path/to/analytics.js"></script>
+    <script src="https://unpkg.com/opentrack-analytics@1.0.0/dist/analytics.iife.js"></script>
 
     <script>
       // Initialize with your OpenTrack instance
@@ -123,7 +309,7 @@ analytics.load('your-write-key', {
 
 | Option           | Type    | Default                    | Description                                    |
 | ---------------- | ------- | -------------------------- | ---------------------------------------------- |
-| `host`           | string  | `'http://localhost:3000'`  | Your OpenTrack instance URL                     |
+| `host`           | string  | `'http://localhost:3000'`  | Your OpenTrack instance URL                    |
 | `writeKey`       | string  | `''`                       | Write key for authentication                   |
 | `flushAt`        | number  | `20`                       | Number of events to queue before auto-flushing |
 | `flushInterval`  | number  | `10000`                    | Time in milliseconds between auto-flushes      |
@@ -156,19 +342,49 @@ analytics.ready(() => {
 })
 ```
 
+## Package Entry Points
+
+This package provides multiple entry points for different use cases:
+
+### Main Entry Point
+
+```typescript
+import analytics from 'opentrack-analytics'
+// Uses the browser implementation when available, falls back to server-safe version
+```
+
+### Browser-Specific Entry Point
+
+```typescript
+import analytics from 'opentrack-analytics/browser'
+// Always uses the full browser implementation
+```
+
+### Server-Safe Entry Point
+
+```typescript
+import analytics from 'opentrack-analytics/server'
+// No-op implementation safe for server-side rendering
+```
+
+## Build Outputs
+
+The package includes multiple build formats:
+
+- **ESM** (`*.esm.js`): For modern bundlers and ES module environments
+- **CommonJS** (`*.cjs.js`): For Node.js and older bundlers
+- **UMD** (`analytics.umd.js`): Universal module definition for browser usage
+- **IIFE** (`analytics.iife.js`): For direct script tag usage, exposes `OpenTrackAnalytics` global
+
+All builds include:
+
+- Source maps for debugging
+- Minification for production
+- TypeScript declaration files (`.d.ts`)
+
 ## Demo
 
 Open `demo.html` in your browser to see the library in action. The demo shows all available methods and includes debug output.
-
-## Output
-
-The build process generates `dist/analytics.js` from the TypeScript source in `src/analytics.ts`. The compiled library:
-
-- Is bundled as an IIFE (Immediately Invoked Function Expression)
-- Exposes a global `analytics` object
-- Works in all modern browsers
-- Automatically tracks an initial page view
-- Flushes events on page unload
 
 ## Integration with OpenTrack
 
@@ -207,3 +423,53 @@ src/
 - **Context Builder**: Automatically captures browser and page information
 - **ID Generator**: Cryptographically secure UUID generation with Math.random fallback
 - **Configuration**: Centralized config management with intelligent defaults
+
+## Development
+
+### Local Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all formats
+pnpm build
+
+# Start development server (for testing)
+pnpm dev
+```
+
+### Publishing
+
+The package is ready for npm publication with:
+
+- Proper `package.json` configuration with exports map
+- Multiple build formats (ESM, CJS, UMD, IIFE)
+- TypeScript declarations
+- Server-safe implementations
+- Framework compatibility
+
+```bash
+# Build for production
+pnpm build
+
+# Publish to npm
+npm publish
+```
+
+## Framework Compatibility
+
+✅ **Next.js** (App Router & Pages Router)  
+✅ **Astro**  
+✅ **SvelteKit**  
+✅ **Nuxt.js**  
+✅ **Vue.js**  
+✅ **React** (Create React App, Vite)  
+✅ **Angular**  
+✅ **Vanilla JavaScript**  
+✅ **Server-Side Rendering (SSR)**  
+✅ **Static Site Generation (SSG)**
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.

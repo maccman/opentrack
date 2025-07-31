@@ -223,8 +223,8 @@ class Analytics {
     const events = [...this.queue]
     this.queue = []
 
-    // Clear flush timer
-    if (this.flushTimer) {
+    // Clear flush timer (browser only)
+    if (this.flushTimer && typeof window !== 'undefined') {
       clearTimeout(this.flushTimer)
       this.flushTimer = null
     }
@@ -258,8 +258,8 @@ class Analytics {
       return
     }
 
-    // Schedule flush if not already scheduled
-    if (!this.flushTimer) {
+    // Schedule flush if not already scheduled (browser only)
+    if (!this.flushTimer && typeof window !== 'undefined') {
       this.flushTimer = window.setTimeout(() => {
         this.flush()
       }, this.config.flushInterval)
@@ -270,7 +270,7 @@ class Analytics {
 // Create global analytics instance
 const analytics = new Analytics()
 
-// Auto-track initial page view
+// Auto-track initial page view and setup global usage (browser only)
 if (typeof window !== 'undefined') {
   analytics.ready(() => {
     analytics.page()
@@ -280,10 +280,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     analytics.flush()
   })
-}
 
-// Export for global usage
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-;(window as any).analytics = analytics
+  // Export for global usage
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  ;(window as any).analytics = analytics
+}
 
 export default analytics

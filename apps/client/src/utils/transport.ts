@@ -16,8 +16,17 @@ export class AnalyticsTransport {
 
   /**
    * Sends a single event to the analytics endpoint
+   * Safely handles server environments where browser APIs are not available
    */
   async sendEvent(event: EventPayload): Promise<void> {
+    // Skip sending events in server environments
+    if (typeof window === 'undefined') {
+      if (this.config.debug) {
+        console.log('[Analytics] Skipping event send in server environment:', event)
+      }
+      return
+    }
+
     const endpoint = `${this.config.host}/v1/${event.type}`
     const data = JSON.stringify(event)
 
@@ -27,7 +36,7 @@ export class AnalyticsTransport {
 
     try {
       // Use sendBeacon for reliability, fallback to fetch
-      if (navigator.sendBeacon) {
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([data], { type: 'application/json' })
         const success = navigator.sendBeacon(endpoint, blob)
 
@@ -58,17 +67,22 @@ export class AnalyticsTransport {
 
   /**
    * Fallback fetch implementation
+   * Safely handles server environments where fetch might not be available
    */
   private async fallbackFetch(endpoint: string, data: string): Promise<void> {
     try {
-      await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: data,
-        keepalive: true,
-      })
+      if (typeof fetch !== 'undefined') {
+        await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: data,
+          keepalive: true,
+        })
+      } else if (this.config.debug) {
+        console.warn('[Analytics] Fetch not available in this environment')
+      }
     } catch (error) {
       if (this.config.debug) {
         console.error('[Analytics] Fetch fallback failed:', error)
