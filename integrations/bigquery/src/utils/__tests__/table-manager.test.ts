@@ -4,28 +4,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TableManager } from '../table-manager'
 
 // Mock BigQuery types
-function createMockTable (exists = false, schema?: TableSchema) {
+function createMockTable(exists = false, schema?: TableSchema) {
   return {
-  exists: vi.fn().mockResolvedValue([exists]),
-  getMetadata: vi.fn().mockResolvedValue([{ schema }]),
-  create: vi.fn().mockResolvedValue(undefined),
-  setMetadata: vi.fn().mockResolvedValue(undefined),
-  insert: vi.fn().mockResolvedValue(undefined),
-}
+    exists: vi.fn().mockResolvedValue([exists]),
+    getMetadata: vi.fn().mockResolvedValue([{ schema }]),
+    create: vi.fn().mockResolvedValue(undefined),
+    setMetadata: vi.fn().mockResolvedValue(undefined),
+    insert: vi.fn().mockResolvedValue(undefined),
+  }
 }
 
-function createMockDataset (exists = false) {
+function createMockDataset(exists = false) {
   return {
-  exists: vi.fn().mockResolvedValue([exists]),
-  create: vi.fn().mockResolvedValue(undefined),
-  table: vi.fn(),
-}
+    exists: vi.fn().mockResolvedValue([exists]),
+    create: vi.fn().mockResolvedValue(undefined),
+    table: vi.fn(),
+  }
 }
 
-function createMockBigQuery () {
+function createMockBigQuery() {
   return {
-  dataset: vi.fn(),
-}
+    dataset: vi.fn(),
+  }
 }
 
 describe('TableManager', () => {

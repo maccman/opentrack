@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import { RegionManager } from '../../utils/region-manager'
 
 describe('RegionManager', () => {

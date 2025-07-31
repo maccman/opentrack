@@ -14,9 +14,8 @@ type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | Ali
  * @param payload - The Segment payload to transform
  * @returns BigQuery row object with proper column names and values
  */
-export function transformToRow(payload: Payload): Record<string, any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const row: Record<string, any> = {
+export function transformToRow(payload: Payload): Record<string, unknown> {
+  const row: Record<string, unknown> = {
     id: payload.messageId,
     received_at: new Date(),
     sent_at: payload.timestamp ? new Date(payload.timestamp) : new Date(),
@@ -87,7 +86,7 @@ export function transformToRow(payload: Payload): Record<string, any> {
       break
 
     default:
-      throw new Error(`Unknown payload type: ${(payload as any).type}`)
+      throw new Error(`Unknown payload type: ${(payload as { type?: string }).type}`)
   }
 
   return row

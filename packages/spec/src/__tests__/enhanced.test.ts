@@ -150,7 +150,7 @@ describe('Enhanced Schema Validation (Spec-Compliant)', () => {
   describe('Property Constraints Enforcement', () => {
     test('should limit properties to max 255', () => {
       // Create an object with 256 properties
-      const tooManyProperties: Record<string, any> = {}
+      const tooManyProperties: Record<string, unknown> = {}
       for (let i = 0; i < 256; i++) {
         tooManyProperties[`prop${i}`] = `value${i}`
       }
@@ -238,7 +238,7 @@ describe('Enhanced Schema Validation (Spec-Compliant)', () => {
   describe('Traits Constraints Enforcement', () => {
     test('should limit traits to max 255', () => {
       // Create an object with 256 traits
-      const tooManyTraits: Record<string, any> = {}
+      const tooManyTraits: Record<string, unknown> = {}
       for (let i = 0; i < 256; i++) {
         tooManyTraits[`trait${i}`] = `value${i}`
       }

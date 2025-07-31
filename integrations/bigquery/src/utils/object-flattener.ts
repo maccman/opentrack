@@ -11,14 +11,14 @@ import { convertToSnakeCase } from './case-converter'
  * @param prefix - Optional prefix for keys
  * @returns Flattened object with snake_case keys
  */
-export function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
-  const flattened: Record<string, any> = {}
+export function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+  const flattened: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(obj)) {
     const newKey = prefix ? `${prefix}_${convertToSnakeCase(key)}` : convertToSnakeCase(key)
 
     if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-      Object.assign(flattened, flattenObject(value, newKey))
+      Object.assign(flattened, flattenObject(value as Record<string, unknown>, newKey))
     } else if (Array.isArray(value)) {
       flattened[newKey] = JSON.stringify(value)
     } else {

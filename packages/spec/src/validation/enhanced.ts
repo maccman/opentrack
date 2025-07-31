@@ -12,7 +12,7 @@ import { z } from 'zod'
  */
 
 // Helper function to validate no reserved names ($ prefix)
-function validateNotReserved (name: string) {
+function validateNotReserved(name: string) {
   if (name.startsWith('$')) {
     return false
   }
@@ -40,7 +40,7 @@ const enhancedPropertiesSchema = z
   }, 'Arrays cannot exceed 255 elements')
   .refine((props) => {
     // Validate nesting depth - properties object itself counts as level 1
-    const checkDepth = (obj: any, depth = 1): boolean => {
+    const checkDepth = (obj: unknown, depth = 1): boolean => {
       if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
         for (const value of Object.values(obj)) {
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {

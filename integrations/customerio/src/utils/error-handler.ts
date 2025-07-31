@@ -1,87 +1,98 @@
 export interface CustomerioError extends Error {
   statusCode?: number
   code?: string
-  response?: any
+  response?: unknown
+}
+
+function isCustomerioError(error: unknown): error is CustomerioError {
+  return typeof error === 'object' && error !== null && 'statusCode' in error
 }
 
 export class CustomerioErrorHandler {
-  static mapError(error: any): CustomerioError {
-    if (error.statusCode) {
-      switch (error.statusCode) {
-        case 400:
-          return {
-            name: 'ValidationError',
-            message: `Invalid request data: ${error.message || 'Bad Request'}`,
-            statusCode: error.statusCode,
-            code: 'VALIDATION_ERROR',
-            response: error.response,
-          }
-        case 401:
-          return {
-            name: 'AuthenticationError',
-            message: 'Invalid Customer.io credentials. Check your site ID and API key.',
-            statusCode: error.statusCode,
-            code: 'AUTHENTICATION_ERROR',
-            response: error.response,
-          }
-        case 403:
-          return {
-            name: 'AuthorizationError',
-            message: 'Access denied. Check your API permissions.',
-            statusCode: error.statusCode,
-            code: 'AUTHORIZATION_ERROR',
-            response: error.response,
-          }
-        case 429:
-          return {
-            name: 'RateLimitError',
-            message: 'Rate limit exceeded. Please slow down your requests.',
-            statusCode: error.statusCode,
-            code: 'RATE_LIMIT_ERROR',
-            response: error.response,
-          }
-        case 500:
-        case 502:
-        case 503:
-        case 504:
-          return {
-            name: 'ServerError',
-            message: `Customer.io server error: ${error.message || 'Internal Server Error'}`,
-            statusCode: error.statusCode,
-            code: 'SERVER_ERROR',
-            response: error.response,
-          }
-        default:
-          return {
-            name: 'CustomerioError',
-            message: error.message || 'Unknown Customer.io error',
-            statusCode: error.statusCode,
-            code: 'UNKNOWN_ERROR',
-            response: error.response,
-          }
+  static mapError(error: unknown): CustomerioError {
+    // Type guard for objects with potential HTTP error properties
+    if (isCustomerioError(error)) {
+      if (error.statusCode) {
+        switch (error.statusCode) {
+          case 400:
+            return {
+              name: 'ValidationError',
+              message: `Invalid request data: ${error.message || 'Bad Request'}`,
+              statusCode: error.statusCode,
+              code: 'VALIDATION_ERROR',
+              response: error.response,
+            }
+          case 401:
+            return {
+              name: 'AuthenticationError',
+              message: 'Invalid Customer.io credentials. Check your site ID and API key.',
+              statusCode: error.statusCode,
+              code: 'AUTHENTICATION_ERROR',
+              response: error.response,
+            }
+          case 403:
+            return {
+              name: 'AuthorizationError',
+              message: 'Access denied. Check your API permissions.',
+              statusCode: error.statusCode,
+              code: 'AUTHORIZATION_ERROR',
+              response: error.response,
+            }
+          case 429:
+            return {
+              name: 'RateLimitError',
+              message: 'Rate limit exceeded. Please slow down your requests.',
+              statusCode: error.statusCode,
+              code: 'RATE_LIMIT_ERROR',
+              response: error.response,
+            }
+          case 500:
+          case 502:
+          case 503:
+          case 504:
+            return {
+              name: 'ServerError',
+              message: `Customer.io server error: ${error.message || 'Internal Server Error'}`,
+              statusCode: error.statusCode,
+              code: 'SERVER_ERROR',
+              response: error.response,
+            }
+          default:
+            return {
+              name: 'CustomerioError',
+              message: error.message || 'Unknown Customer.io error',
+              statusCode: error.statusCode,
+              code: 'UNKNOWN_ERROR',
+              response: error.response,
+            }
+        }
       }
     }
 
     // Network or other errors
-    if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
-      return {
-        name: 'NetworkError',
-        message: 'Network connection error. Please check your internet connection.',
-        code: 'NETWORK_ERROR',
+    if (isCustomerioError(error)) {
+      if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+        return {
+          name: 'NetworkError',
+          message: 'Network connection error. Please check your internet connection.',
+          code: 'NETWORK_ERROR',
+        }
+      }
+
+      if (error.code === 'ETIMEDOUT') {
+        return {
+          name: 'TimeoutError',
+          message: 'Request timeout. Customer.io took too long to respond.',
+          code: 'TIMEOUT_ERROR',
+        }
       }
     }
 
-    if (error.code === 'ETIMEDOUT') {
-      return {
-        name: 'TimeoutError',
-        message: 'Request timeout. Customer.io took too long to respond.',
-        code: 'TIMEOUT_ERROR',
-      }
-    }
-
+    // Fallback for any error type
+    const fallbackError = error as { message?: string }
     return {
       name: 'CustomerioError',
-      message: error.message || 'Unknown error occurred',
+      message: fallbackError.message || 'Unknown error occurred',
       code: 'UNKNOWN_ERROR',
     }
   }

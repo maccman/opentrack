@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { describe, expect, it } from 'vitest'
+
 import { CustomerioTransformer } from '../../utils/transformer'
 
 describe('CustomerioTransformer', () => {

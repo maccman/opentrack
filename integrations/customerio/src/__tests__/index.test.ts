@@ -1,5 +1,6 @@
-import { AliasCall, GroupCall, IdentifyCall, TrackCall } from '@app/spec'
+import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { CustomerioIntegration } from '../index'
 
 // Mock the customerio-node module
@@ -102,7 +103,8 @@ describe('CustomerioIntegration', () => {
 
   describe('identify', () => {
     it('should call client identify with transformed data', async () => {
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: {
           email: 'test@example.com',
@@ -119,7 +121,8 @@ describe('CustomerioIntegration', () => {
     })
 
     it('should validate email format', async () => {
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: {
           email: 'invalid-email',
@@ -130,7 +133,8 @@ describe('CustomerioIntegration', () => {
     })
 
     it('should handle timestamp conversion', async () => {
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: { email: 'test@example.com' },
         timestamp: '2023-01-01T00:00:00Z',
@@ -147,7 +151,8 @@ describe('CustomerioIntegration', () => {
 
   describe('track', () => {
     it('should call client track for identified users', async () => {
-      const call: TrackCall = {
+      const call: TrackPayload = {
+        type: 'track',
         userId: 'user123',
         event: 'Purchase Completed',
         properties: {
@@ -168,7 +173,8 @@ describe('CustomerioIntegration', () => {
     })
 
     it('should call trackAnonymous for anonymous users', async () => {
-      const call: TrackCall = {
+      const call: TrackPayload = {
+        type: 'track',
         event: 'Page Viewed',
         properties: {
           url: '/home',
@@ -187,7 +193,8 @@ describe('CustomerioIntegration', () => {
     })
 
     it('should generate anonymous ID when not provided', async () => {
-      const call: TrackCall = {
+      const call: TrackPayload = {
+        type: 'track',
         event: 'Page Viewed',
         properties: {
           url: '/home',
@@ -263,7 +270,8 @@ describe('CustomerioIntegration', () => {
 
   describe('group', () => {
     it('should update user with group information and track group joined event', async () => {
-      const call: GroupCall = {
+      const call: GroupPayload = {
+        type: 'group',
         userId: 'user123',
         groupId: 'company456',
         traits: {
@@ -296,7 +304,8 @@ describe('CustomerioIntegration', () => {
 
   describe('alias', () => {
     it('should call mergeCustomers with correct parameters', async () => {
-      const call: AliasCall = {
+      const call: AliasPayload = {
+        type: 'alias',
         userId: 'user123',
         previousId: 'temp456',
       }
@@ -360,7 +369,8 @@ describe('CustomerioIntegration', () => {
         .mockRejectedValueOnce({ statusCode: 500 })
         .mockResolvedValueOnce({})
 
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: { email: 'test@example.com' },
       }
@@ -372,7 +382,8 @@ describe('CustomerioIntegration', () => {
     it('should not retry on non-retryable errors', async () => {
       mockClient.identify.mockRejectedValueOnce({ statusCode: 400 })
 
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: { email: 'test@example.com' },
       }
@@ -384,7 +395,8 @@ describe('CustomerioIntegration', () => {
     it('should throw after maximum retry attempts', async () => {
       mockClient.identify.mockRejectedValue({ statusCode: 500 })
 
-      const call: IdentifyCall = {
+      const call: IdentifyPayload = {
+        type: 'identify',
         userId: 'user123',
         traits: { email: 'test@example.com' },
       }

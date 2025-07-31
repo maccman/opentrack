@@ -7,7 +7,7 @@ export class CustomerioTransformer {
    */
   static transformIdentify(payload: IdentifyPayload): {
     id: string
-    traits: Record<string, any>
+    traits: Record<string, unknown>
   } {
     const { userId, traits = {} } = payload
 
@@ -35,7 +35,7 @@ export class CustomerioTransformer {
   static transformTrack(payload: TrackPayload): {
     id?: string
     event: string
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   } {
     const { userId, event, properties = {} } = payload
 
@@ -53,7 +53,7 @@ export class CustomerioTransformer {
     const result: {
       id?: string
       event: string
-      properties: Record<string, any>
+      properties: Record<string, unknown>
     } = {
       event,
       properties: transformedProperties,
@@ -73,20 +73,22 @@ export class CustomerioTransformer {
   static transformPage(payload: PagePayload): {
     id?: string
     event: string
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   } {
     const { userId, name, properties = {} } = payload
 
     // Create a page title from name
     const pageTitle = name || 'Page Viewed'
 
-    const transformedProperties: Record<string, any> = {
+    const transformedProperties: Record<string, unknown> = {
       ...properties,
       page_title: pageTitle,
     }
 
     // Add page-specific properties
-    if (name) {transformedProperties.page_name = name}
+    if (name) {
+      transformedProperties.page_name = name
+    }
 
     // Add timestamp if present
     if (payload.timestamp) {
@@ -100,7 +102,7 @@ export class CustomerioTransformer {
 
     // Only add id if userId is present
     if (userId) {
-      ;(result as any).id = userId
+      ;(result as { id?: string }).id = userId
     }
 
     return result
@@ -112,7 +114,7 @@ export class CustomerioTransformer {
   static transformGroup(payload: GroupPayload): {
     id: string
     groupId: string
-    traits: Record<string, any>
+    traits: Record<string, unknown>
   } {
     const { userId, groupId, traits = {} } = payload
 
@@ -197,8 +199,8 @@ export class CustomerioTransformer {
   /**
    * Sanitize properties to ensure they're JSON-serializable
    */
-  static sanitizeProperties(properties: Record<string, any>): Record<string, any> {
-    const sanitized: Record<string, any> = {}
+  static sanitizeProperties(properties: Record<string, unknown>): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {}
 
     for (const [key, value] of Object.entries(properties)) {
       if (value === undefined) {
@@ -210,19 +212,26 @@ export class CustomerioTransformer {
       } else if (Array.isArray(value)) {
         sanitized[key] = value.map((item) => this.sanitizeValue(item))
       } else if (typeof value === 'object' && value.constructor === Object) {
-        sanitized[key] = this.sanitizeProperties(value)
+        sanitized[key] = this.sanitizeProperties(value as Record<string, unknown>)
       } else if (value instanceof Date) {
         sanitized[key] = value.toISOString()
       } else {
-        // Convert other types to string
-        sanitized[key] = String(value)
+        // Convert other types to string, but skip complex objects
+        if (typeof value === 'object' && value !== null) {
+          sanitized[key] = JSON.stringify(value)
+        } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          sanitized[key] = String(value)
+        } else {
+          // Fallback for any other primitive types
+          sanitized[key] = value === null || value === undefined ? '' : 'null'
+        }
       }
     }
 
     return sanitized
   }
 
-  private static sanitizeValue(value: any): any {
+  private static sanitizeValue(value: unknown): unknown {
     if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       return value
     }
@@ -232,9 +241,17 @@ export class CustomerioTransformer {
     }
 
     if (typeof value === 'object' && value.constructor === Object) {
-      return this.sanitizeProperties(value)
+      return this.sanitizeProperties(value as Record<string, unknown>)
     }
 
-    return String(value)
+    // Handle remaining primitive types
+    if (typeof value === 'object' && value !== null) {
+      return JSON.stringify(value)
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value)
+    }
+    // Fallback for any remaining values
+    return value === null || value === undefined ? '' : 'null'
   }
 }

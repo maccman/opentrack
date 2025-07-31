@@ -325,7 +325,7 @@ describe('Segment Event Validation', () => {
       // If traits are provided, they should be ignored or cause error depending on schema strictness
       const result = aliasEventSchema.safeParse(invalidWithTraits)
       expect(result.success).toBe(true) // Zod ignores extra fields by default
-      expect((result.data as any).traits).toBeUndefined()
+      expect((result.data as { traits?: unknown }).traits).toBeUndefined()
     })
 
     test('should enforce alias type literal', () => {

@@ -9,7 +9,7 @@ import type { TableField, TableSchema } from '@google-cloud/bigquery'
  * @param value - The value to analyze
  * @returns BigQuery column type string
  */
-export function detectBigQueryType(value: any): string {
+export function detectBigQueryType(value: unknown): string {
   if (value === null || value === undefined) {
     return 'STRING' // Default to STRING for null values, can be relaxed later
   }
@@ -49,7 +49,7 @@ function isValidTimestamp(value: string): boolean {
   const timestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
   if (timestampRegex.test(value)) {
     const date = new Date(value)
-    return !isNaN(date.getTime())
+    return !Number.isNaN(date.getTime())
   }
   return false
 }
@@ -59,7 +59,7 @@ function isValidTimestamp(value: string): boolean {
  * @param row - The data row to analyze
  * @returns BigQuery TableSchema
  */
-export function generateSchemaFromRow(row: Record<string, any>): TableSchema {
+export function generateSchemaFromRow(row: Record<string, unknown>): TableSchema {
   const fields: TableField[] = []
 
   for (const [columnName, value] of Object.entries(row)) {

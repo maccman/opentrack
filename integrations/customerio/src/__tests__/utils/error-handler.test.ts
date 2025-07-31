@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { CustomerioErrorHandler } from '../../utils/error-handler'
 
 describe('CustomerioErrorHandler', () => {

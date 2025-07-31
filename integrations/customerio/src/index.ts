@@ -68,7 +68,11 @@ export class CustomerioIntegration implements Integration {
       const transformed = CustomerioTransformer.transformIdentify(payload)
 
       // Validate email if present
-      if (transformed.traits.email && !CustomerioTransformer.isValidEmail(transformed.traits.email)) {
+      if (
+        transformed.traits.email &&
+        typeof transformed.traits.email === 'string' &&
+        !CustomerioTransformer.isValidEmail(transformed.traits.email)
+      ) {
         throw new Error(`Invalid email format: ${transformed.traits.email}`)
       }
 
@@ -135,7 +139,9 @@ export class CustomerioIntegration implements Integration {
 
         // Also track as page view if URL is available
         if (transformed.properties.url) {
-          await this.executeWithRetry(() => this.client.trackPageView(transformed.id!, transformed.properties.url))
+          await this.executeWithRetry(() =>
+            this.client.trackPageView(transformed.id!, transformed.properties.url as string)
+          )
         }
       } else {
         // Anonymous page view
@@ -266,7 +272,7 @@ export class CustomerioIntegration implements Integration {
    * Execute a function with retry logic
    */
   private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    let lastError: any
+    let lastError: unknown
 
     for (let attempt = 0; attempt < this.config.retryAttempts!; attempt++) {
       try {

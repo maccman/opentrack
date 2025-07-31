@@ -1,54 +1,73 @@
 # Libroseg
 
-The purpose of this project is to create an open source slimmed down [Segment](https://segment.com). The project will emulate the exact same Segment API endpoints.
+![Libroseg Logo](https://raw.githubusercontent.com/riven-io/libroseg/master/.github/logo.png)
 
-The task will be to take a event, then stream it onto the 3rd party integrations. The integrations that we will initially build out are:
+**Libroseg** is a lightweight, open-source Segment alternative designed for high-performance event tracking and seamless integration with modern data stacks. Built to be deployed on serverless platforms like Vercel, it offers a Segment-compliant API that can process and route analytics events to various destinations with minimal latency.
 
-- Customer.io
-- Google BigQuery
+## Table of Contents
 
-You can self-host this app on Vercel, which should be extremely fast. We will be using Vercel functions with their new fluid compute feature.
+- [Features](#features)
+- [Architecture](#architecture)
+- [API Endpoints](#api-endpoints)
+- [Integrations](#integrations)
+  - [Google BigQuery](#google-bigquery)
+  - [Customer.io](#customerio)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+- [Usage](#usage)
+  - [Using `analytics-node`](#using-analytics-node)
+  - [Direct API Calls](#direct-api-calls)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
-This app provides a HTTP interface that is Segment-compliant. You can take the existing segment.js JavaScript library and point them at these endpoints.
+## Features
 
-## Setup
+- **Segment-Compliant API**: Drop-in replacement for Segment’s HTTP Tracking API. Use existing Segment SDKs with minimal configuration changes.
+- **High Performance**: Built for serverless environments, Libroseg provides rapid response times by processing events asynchronously.
+- **Extensible Integration Framework**: Easily add new destinations for your analytics data.
+- **Pre-built Integrations**: Out-of-the-box support for Google BigQuery and Customer.io.
+- **Self-Hostable**: Deploy on Vercel or any other Node.js-compatible serverless platform for full control over your data pipeline.
+- **Robust Validation**: Ensures data integrity with Zod-based schema validation for all incoming events.
 
-1. Clone the repository
-2. Run `pnpm install`
-3. Run `pnpm dev`
+## Architecture
 
-### Configuration
+Libroseg is designed for speed and reliability. It leverages a serverless architecture to handle incoming API requests and processes events asynchronously.
 
-1. Create a `.env` file in the root of the project.
-2. Add the following variables:
+Here’s a high-level overview of the data flow:
 
-```env
-# Customer.io
-CUSTOMERIO_SITE_ID=your-customerio-site-id
-CUSTOMERIO_API_KEY=your-customerio-api-key
+```mermaid
+graph TD
+    subgraph "Client"
+        A[Segment SDK Request<br/>(e.g., POST /v1/track)]
+    end
 
-# Google BigQuery
-BIGQUERY_PROJECT_ID=your-bigquery-project-id
-BIGQUERY_DATASET=your-dataset
-BIGQUERY_TABLE=your-table
+    subgraph "Vercel Serverless Function"
+        A --> B{Nitro API Endpoint};
+        B --> C[1. Parse & Validate Payload<br/>(using Zod)];
+        C --> D[2. Immediately Return 200 OK];
+        C --> E[3. Process Event Asynchronously];
+    end
+
+    subgraph "Async Processing"
+        E --> F{Integration Manager};
+        F --> G[BigQuery Integration];
+        F --> H[Customer.io Integration];
+    end
+
+    subgraph "Downstream Services"
+        G --> J[(Google BigQuery)];
+        H --> K[(Customer.io API)];
+    end
 ```
 
-API Endpoints
-
-Emulates Segment’s HTTP Tracking API:
-• POST /v1/track
-• POST /v1/identify
-• POST /v1/page
-• POST /v1/group
-• POST /v1/alias
-
-Payloads and responses match the official Segment API.
-
----
+This asynchronous approach ensures that your application receives a fast response, while Libroseg reliably delivers the data to your configured integrations.
 
 ## API Endpoints
 
-Emulates [Segment’s HTTP Tracking API](https://segment.com/docs/connections/sources/catalog/libraries/server/http-api/):
+Libroseg emulates Segment’s HTTP Tracking API, providing the following endpoints:
 
 - `POST /v1/track`
 - `POST /v1/identify`
@@ -56,143 +75,146 @@ Emulates [Segment’s HTTP Tracking API](https://segment.com/docs/connections/so
 - `POST /v1/group`
 - `POST /v1/alias`
 
-Payloads and responses match the official Segment API.
-
----
-
-## Authentication
-
-No authentication is required for this API. Since there's only one organization and the service is hosted on Vercel, incoming requests don't need to differentiate between different organizations or users. All API endpoints accept requests without any authentication headers or tokens.
-
-This simplifies integration and allows for immediate event tracking without the overhead of API key management or user authentication flows.
-
----
+Payloads and responses for these endpoints are compatible with the official Segment API.
 
 ## Integrations
 
-### Customer.io
-
-Events will be forwarded as [Customer.io Track API](https://customer.io/docs/api/#operation/track) calls.  
-Requires `CUSTOMERIO_SITE_ID` and `CUSTOMERIO_API_KEY`.
+Libroseg comes with pre-built support for the following integrations:
 
 ### Google BigQuery
 
-Events are streamed directly into your BigQuery table.  
-Requires `BIGQUERY_PROJECT_ID`, `BIGQUERY_DATASET`, and `BIGQUERY_TABLE`.
+- **Segment-Compatible Schema**: Data is stored in a schema that mirrors Segment's conventions, allowing you to use existing queries and BI tools.
+- **Automatic Table & Schema Management**: Automatically creates datasets, tables, and columns, and adjusts data types as needed.
+- **Dynamic SQL Views**: Includes a script to create analytics-ready views on top of your raw data.
 
----
+### Customer.io
 
-## Example Usage
-
-Send an event:
-
-```bash
-curl -X POST http://localhost:3000/v1/track \
-  -H 'Content-Type: application/json' \
-  -d '{
-        "userId": "123",
-        "event": "Order Completed",
-        "properties": { "revenue": 42 }
-      }'
-```
-
----
-
-# Monorepo Scaffold
-
-This is a scaffold for a modern web application using a monorepo architecture. It's designed to provide a solid foundation for new projects, with a focus on type-safety, developer experience, and scalability.
-
-## What's inside?
-
-This monorepo includes:
-
-- `apps/web`: An [Astro](https://astro.build/) application for the frontend.
-- `packages/api`: API utilities and database actions for server-side operations.
-- `packages/db`: Database schemas, migrations, and query utilities using [Kysely](https://kysely.dev/).
-- `packages/utils`: Shared utilities used across the monorepo.
-- **Authentication**: Example implementation using [better-auth](https://github.com/BetterAuth/better-auth) with GitHub as an OAuth provider.
-- **UI**: Basic UI setup with [Tailwind CSS](https://tailwindcss.com/) and [shadcn/ui](https://ui.shadcn.com/).
-- **Tooling**:
-  - [Turborepo](https://turbo.build/repo) for high-performance builds.
-  - [PNPM](https://pnpm.io/) for efficient package management.
-  - [TypeScript](https://www.typescriptlang.org/) for static typing.
-  - [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/) for code quality.
-
-## Perfect for AI-Assisted Development
-
-This scaffold is specifically designed to excel with AI coding assistants and "vibe coding" workflows:
-
-- **Rich Examples**: The codebase provides comprehensive examples of common patterns like API routing, database connections, migrations, authentication flows, and UI components that AI can learn from and replicate.
-- **Comprehensive Cursor Rules**: Pre-configured `.cursor/rules/` directory with detailed guidelines for:
-  - Database patterns and Kysely type helpers
-  - React component conventions and shadcn/ui usage
-  - TypeScript best practices and naming conventions
-  - Environment variable management
-  - Code organization and project structure
-- **Consistent Patterns**: Standardized approaches across the entire stack make it easy for AI to understand and extend the codebase following established conventions.
-- **Type Safety**: Full TypeScript coverage provides clear contracts and interfaces that AI can work with confidently.
-
-Whether you're pair programming with Claude, GitHub Copilot, or Cursor's AI, this scaffold gives your AI assistant the context and examples it needs to generate high-quality, consistent code that follows your project's patterns.
+- **Full API Support**: Implements all core tracking methods (`identify`, `track`, `page`, `group`, `alias`).
+- **Multi-Region Support**: Works with both US and EU data centers.
+- **Resilient Delivery**: Features automatic retries with exponential backoff for reliable event delivery.
 
 ## Getting Started
 
-1.  **Clone the repository:**
+Follow these steps to set up and run your own instance of Libroseg.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or later)
+- [pnpm](https://pnpm.io/)
+
+### Installation
+
+1.  **Clone the repository**:
 
     ```bash
-    git clone https://github.com/your-repo/monorepo-scaffold.git
-    cd monorepo-scaffold
+    git clone https://github.com/riven-io/libroseg.git
+    cd libroseg
     ```
 
-2.  **Install dependencies:**
-
+2.  **Install dependencies**:
     ```bash
     pnpm install
     ```
 
-3.  **Set up environment variables:**
+### Configuration
 
-    Create a `.env` file in `apps/web` and add the following variables:
+1.  **Create a `.env` file** in the root of the project.
+2.  **Add the following environment variables** for the integrations you want to use:
 
     ```env
-    # Generate a secret with `openssl rand -base64 32`
-    AUTH_SECRET="your_auth_secret"
+    # Customer.io
+    CUSTOMERIO_SITE_ID=your-customerio-site-id
+    CUSTOMERIO_API_KEY=your-customerio-api-key
+    CUSTOMERIO_REGION=US # or EU
 
-    # From your GitHub OAuth application
-    GITHUB_CLIENT_ID="your_github_client_id"
-    GITHUB_CLIENT_SECRET="your_github_client_secret"
-
-    # Your local PostgreSQL connection string
-    DATABASE_URL="postgres://user:password@localhost:5432/monorepo-scaffold"
+    # Google BigQuery
+    BIGQUERY_PROJECT_ID=your-gcp-project-id
+    BIGQUERY_DATASET=your_bigquery_dataset_name
+    # Optional: Set to 'false' to manage BigQuery schema manually
+    BIGQUERY_AUTO_TABLE_MANAGEMENT=true
     ```
 
-4.  **Set up the database:**
+    You will also need to set up Google Cloud authentication. Refer to the [Google Cloud documentation](https://cloud.google.com/docs/authentication/production) for details.
 
-    Make sure you have a PostgreSQL server running. Then, run the migrations:
+## Usage
 
-    ```bash
-    DATABASE_URL="postgres://user:password@localhost:5432/monorepo-scaffold" pnpm --filter @app/db db:migrate
-    ```
+You can send data to your Libroseg instance using any Segment-compatible library or by making direct HTTP requests.
 
-5.  **Run the development server:**
+### Using `analytics-node`
 
-    ```bash
-    pnpm dev
-    ```
+The official `analytics-node` package can be used to send events to your Libroseg instance by pointing it to your deployment's URL.
 
-    The web application will be available at `http://localhost:3001`.
+#### Installation
+
+```bash
+pnpm add analytics-node
+```
+
+#### Example
+
+```javascript
+import Analytics from 'analytics-node'
+
+const analytics = new Analytics('YOUR_WRITE_KEY', {
+  host: 'https://your-libroseg-deployment.vercel.app',
+})
+
+// Identify a user
+analytics.identify({
+  userId: 'user-123',
+  traits: {
+    email: 'test@example.com',
+    name: 'Test User',
+    plan: 'premium',
+  },
+})
+
+// Track a purchase event
+analytics.track({
+  userId: 'user-123',
+  event: 'Product Purchased',
+  properties: {
+    productId: 'prod-456',
+    price: 99.99,
+    currency: 'USD',
+  },
+})
+
+// Track a page view
+analytics.page({
+  userId: 'user-123',
+  name: 'Pricing Page',
+  properties: {
+    url: 'https://your-app.com/pricing',
+  },
+})
+```
+
+### Direct API Calls
+
+You can also send events directly to the API endpoints using `curl` or any other HTTP client.
+
+```bash
+curl -X POST https://your-libroseg-deployment.vercel.app/v1/track \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "userId": "user-123",
+        "event": "Order Completed",
+        "properties": { "revenue": 42.00 }
+      }'
+```
 
 ## Development
 
-- `pnpm build`: Build all apps and packages.
-- `pnpm lint`: Lint all code.
-- `pnpm typecheck`: Run TypeScript to check for type errors.
-- `pnpm test`: Run tests.
+- **Run the development server**: `pnpm dev`
+- **Run tests**: `pnpm test`
+- **Lint code**: `pnpm lint`
+- **Check types**: `pnpm typecheck`
 
-# Authors
+## Contributing
 
-- [@ocavue](https://github.com/ocavue)
-- [@maccman](https://github.com/maccman)
+Contributions are welcome! Please open an issue or submit a pull request if you have any ideas or improvements.
 
-# License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
