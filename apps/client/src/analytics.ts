@@ -48,6 +48,9 @@ class Analytics {
       host: this.config.host,
       debug: this.config.debug,
       useBeacon: this.config.useBeacon,
+      timeout: this.config.timeout,
+      retries: this.config.retries,
+      retryDelay: this.config.retryDelay,
     })
 
     // Initialize user identity
@@ -72,11 +75,14 @@ class Analytics {
     if (options) {
       this.config = createConfig({ ...this.config, ...options })
 
-      // Update transport config if host, debug, or useBeacon changed
+      // Update transport config if transport options changed
       this.transport = new AnalyticsTransport({
         host: this.config.host,
         debug: this.config.debug,
         useBeacon: this.config.useBeacon,
+        timeout: this.config.timeout,
+        retries: this.config.retries,
+        retryDelay: this.config.retryDelay,
       })
     }
   }

@@ -12,7 +12,10 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   userIdKey: 'analytics_user_id',
   anonymousIdKey: 'analytics_anonymous_id',
   traitsKey: 'analytics_traits',
-  useBeacon: false,
+  useBeacon: true, // Use sendBeacon by default for reliability
+  timeout: 5000, // 5 second timeout
+  retries: 2, // 2 retry attempts
+  retryDelay: 1000, // 1 second base delay
 }
 
 /**

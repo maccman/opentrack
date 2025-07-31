@@ -11,6 +11,9 @@ export interface AnalyticsOptions {
   anonymousIdKey?: string
   traitsKey?: string
   useBeacon?: boolean // Whether to use navigator.sendBeacon (includes credentials)
+  timeout?: number // Request timeout in milliseconds
+  retries?: number // Number of retry attempts
+  retryDelay?: number // Base delay between retries in milliseconds
 }
 
 export interface BaseEventPayload {
