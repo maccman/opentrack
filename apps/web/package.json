@@ -6,7 +6,7 @@
   "description": "Web application frontend",
   "scripts": {
     "build": "nitro build",
-    "dev": "nitro dev",
+    "dev": "PORT=5173 nitro dev",
     "prepare": "nitro prepare",
     "preview": "node .output/server/index.mjs",
     "test": "vitest run",

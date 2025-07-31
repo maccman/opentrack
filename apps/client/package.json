@@ -64,7 +64,7 @@
     "build:browser": "vite build --config vite.browser.config.ts",
     "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
     "clean": "rm -rf dist",
-    "dev": "vite",
+    "dev": "pnpm run build:browser && vite",
     "preview": "vite preview",
     "prepublishOnly": "pnpm run build"
   },

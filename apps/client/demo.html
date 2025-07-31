@@ -90,12 +90,12 @@
     </div>
 
     <!-- Load the analytics library -->
-    <script src="dist/analytics.js"></script>
+    <script src="dist/analytics.iife.js"></script>
 
     <script>
       // Enable debug mode by default for demo
       analytics.load('demo-write-key', {
-        host: 'http://localhost:3000',
+        host: 'http://localhost:5173',
         debug: true,
         flushAt: 5, // Flush after 5 events for demo
         flushInterval: 5000, // Flush every 5 seconds for demo

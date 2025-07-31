@@ -11,6 +11,10 @@ export default defineConfig({
       rollupTypes: true,
     }),
   ],
+  server: {
+    port: 3000,
+    open: '/demo.html',
+  },
   build: {
     lib: {
       entry: {

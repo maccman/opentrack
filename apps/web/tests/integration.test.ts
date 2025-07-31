@@ -264,4 +264,55 @@ describe('Analytics Integration Tests', () => {
     expect(aliasResponse.status).toBe(200)
     expect(aliasResponse.data).toEqual({ success: true })
   })
+
+  it('should include CORS headers in responses', async () => {
+    // Test track endpoint with CORS headers
+    const trackResponse = await $fetchRaw('/v1/track', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://example.com',
+        'Content-Type': 'application/json',
+      },
+      body: {
+        userId: 'test-user-cors',
+        event: 'CORS Test Event',
+        type: 'track',
+      },
+    })
+
+    expect(trackResponse.status).toBe(200)
+    expect(trackResponse.headers).toHaveProperty('access-control-allow-origin')
+    expect(trackResponse.headers).toHaveProperty('access-control-allow-methods')
+    expect(trackResponse.headers).toHaveProperty('access-control-allow-headers')
+
+    // Should allow all origins by default
+    expect(trackResponse.headers.get('access-control-allow-origin')).toBe('*')
+    // Should have fixed methods for analytics
+    expect(trackResponse.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS')
+    // Should have fixed headers for analytics
+    expect(trackResponse.headers.get('access-control-allow-headers')).toBe('Content-Type, Authorization')
+  })
+
+  it('should handle preflight OPTIONS requests', async () => {
+    const optionsResponse = await $fetchRaw('/v1/track', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://example.com',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type',
+      },
+    })
+
+    expect(optionsResponse.status).toBe(204)
+    expect(optionsResponse.headers).toHaveProperty('access-control-allow-origin')
+    expect(optionsResponse.headers).toHaveProperty('access-control-allow-methods')
+    expect(optionsResponse.headers).toHaveProperty('access-control-allow-headers')
+    expect(optionsResponse.headers).toHaveProperty('access-control-max-age')
+
+    // Verify specific CORS header values
+    expect(optionsResponse.headers.get('access-control-allow-origin')).toBe('*')
+    expect(optionsResponse.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS')
+    expect(optionsResponse.headers.get('access-control-allow-headers')).toBe('Content-Type, Authorization')
+    expect(optionsResponse.headers.get('access-control-max-age')).toBe('86400')
+  })
 })
