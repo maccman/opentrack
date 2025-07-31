@@ -5,6 +5,7 @@ import type { EventPayload } from '../types'
 export interface TransportConfig {
   host: string
   debug: boolean
+  useBeacon: boolean
 }
 
 export class AnalyticsTransport {
@@ -35,8 +36,8 @@ export class AnalyticsTransport {
     }
 
     try {
-      // Use sendBeacon for reliability, fallback to fetch
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      // Use sendBeacon for reliability if enabled, fallback to fetch
+      if (this.config.useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([data], { type: 'application/json' })
         const success = navigator.sendBeacon(endpoint, blob)
 
@@ -79,6 +80,7 @@ export class AnalyticsTransport {
           },
           body: data,
           keepalive: true,
+          credentials: 'omit', // Don't send credentials for analytics requests
         })
       } else if (this.config.debug) {
         console.warn('[Analytics] Fetch not available in this environment')

@@ -12,6 +12,7 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   userIdKey: 'analytics_user_id',
   anonymousIdKey: 'analytics_anonymous_id',
   traitsKey: 'analytics_traits',
+  useBeacon: false,
 }
 
 /**

@@ -10,6 +10,7 @@ export interface AnalyticsOptions {
   userIdKey?: string
   anonymousIdKey?: string
   traitsKey?: string
+  useBeacon?: boolean // Whether to use navigator.sendBeacon (includes credentials)
 }
 
 export interface BaseEventPayload {
