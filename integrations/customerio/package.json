@@ -4,6 +4,14 @@
   "version": "0.0.0",
   "private": true,
   "description": "Customer.io integration for the Libroseg project",
+  "author": "libroseg",
+  "license": "MIT",
+  "keywords": [
+    "customerio",
+    "integration",
+    "analytics",
+    "tracking"
+  ],
   "main": "index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -20,13 +28,5 @@
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.3"
-  },
-  "keywords": [
-    "customerio",
-    "integration",
-    "analytics",
-    "tracking"
-  ],
-  "author": "libroseg",
-  "license": "MIT"
+  }
 }

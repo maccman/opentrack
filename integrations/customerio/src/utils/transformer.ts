@@ -86,7 +86,7 @@ export class CustomerioTransformer {
     }
 
     // Add page-specific properties
-    if (name) transformedProperties.page_name = name
+    if (name) {transformedProperties.page_name = name}
 
     // Add timestamp if present
     if (payload.timestamp) {

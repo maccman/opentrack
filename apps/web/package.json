@@ -18,8 +18,8 @@
     "@vercel/functions": "^1.4.0"
   },
   "devDependencies": {
-    "analytics-node": "^6.2.0",
     "@types/analytics-node": "^3.1.14",
+    "analytics-node": "^6.2.0",
     "nitro-test-utils": "^0.8.2",
     "nitropack": "latest",
     "vitest": "^3.1.3"

@@ -1,6 +1,7 @@
 import type { TrackPayload } from '@app/spec'
 import { BigQuery } from '@google-cloud/bigquery'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { BigQueryIntegration } from '../index'
 import { TableManager } from '../utils/table-manager'
 

@@ -1,4 +1,5 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
+
 import { eventNameToTableName } from './case-converter'
 import { flattenObject } from './object-flattener'
 

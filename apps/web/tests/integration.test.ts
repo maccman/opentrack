@@ -1,4 +1,3 @@
-import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import Analytics from 'analytics-node'
 import { $fetch } from 'nitro-test-utils/e2e'
 import { describe, expect, it } from 'vitest'
@@ -21,7 +20,7 @@ describe('Analytics Integration Tests', () => {
   it('should handle track events', async () => {
     analytics = createAnalyticsClient()
 
-    const trackData: TrackPayload = {
+    const trackData = {
       userId: 'test-user-123',
       event: 'Test Event',
       properties: {
@@ -40,9 +39,12 @@ describe('Analytics Integration Tests', () => {
 
     // Send track event using Analytics client
     const result = await new Promise((resolve, reject) => {
-      analytics.track(trackData, (err: any) => {
-        if (err) reject(err)
-        else resolve(true)
+      analytics.track(trackData, (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(true)
+        }
       })
     })
 
@@ -52,7 +54,7 @@ describe('Analytics Integration Tests', () => {
   it('should handle identify events', async () => {
     analytics = createAnalyticsClient()
 
-    const identifyData: IdentifyPayload = {
+    const identifyData = {
       userId: 'test-user-123',
       traits: {
         email: 'test@example.com',
@@ -69,9 +71,12 @@ describe('Analytics Integration Tests', () => {
     }
 
     const result = await new Promise((resolve, reject) => {
-      analytics.identify(identifyData, (err: any) => {
-        if (err) reject(err)
-        else resolve(true)
+      analytics.identify(identifyData, (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(true)
+        }
       })
     })
 
@@ -81,7 +86,7 @@ describe('Analytics Integration Tests', () => {
   it('should handle page events', async () => {
     analytics = createAnalyticsClient()
 
-    const pageData: PagePayload = {
+    const pageData = {
       userId: 'test-user-123',
       name: 'Test Page',
       properties: {
@@ -99,9 +104,12 @@ describe('Analytics Integration Tests', () => {
     }
 
     const result = await new Promise((resolve, reject) => {
-      analytics.page(pageData, (err: any) => {
-        if (err) reject(err)
-        else resolve(true)
+      analytics.page(pageData, (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(true)
+        }
       })
     })
 
@@ -111,7 +119,7 @@ describe('Analytics Integration Tests', () => {
   it('should handle group events', async () => {
     analytics = createAnalyticsClient()
 
-    const groupData: GroupPayload = {
+    const groupData = {
       userId: 'test-user-123',
       groupId: 'test-group-456',
       traits: {
@@ -129,9 +137,12 @@ describe('Analytics Integration Tests', () => {
     }
 
     const result = await new Promise((resolve, reject) => {
-      analytics.group(groupData, (err: any) => {
-        if (err) reject(err)
-        else resolve(true)
+      analytics.group(groupData, (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(true)
+        }
       })
     })
 
@@ -141,7 +152,7 @@ describe('Analytics Integration Tests', () => {
   it('should handle alias events', async () => {
     analytics = createAnalyticsClient()
 
-    const aliasData: AliasPayload = {
+    const aliasData = {
       userId: 'test-user-123',
       previousId: 'anonymous-user-789',
       context: {
@@ -154,9 +165,12 @@ describe('Analytics Integration Tests', () => {
     }
 
     const result = await new Promise((resolve, reject) => {
-      analytics.alias(aliasData, (err: any) => {
-        if (err) reject(err)
-        else resolve(true)
+      analytics.alias(aliasData, (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(true)
+        }
       })
     })
 

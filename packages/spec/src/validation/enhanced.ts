@@ -12,7 +12,7 @@ import { z } from 'zod'
  */
 
 // Helper function to validate no reserved names ($ prefix)
-const validateNotReserved = (name: string) => {
+function validateNotReserved (name: string) {
   if (name.startsWith('$')) {
     return false
   }

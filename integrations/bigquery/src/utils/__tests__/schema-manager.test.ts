@@ -1,5 +1,6 @@
 import type { TableSchema } from '@google-cloud/bigquery'
 import { describe, expect, it } from 'vitest'
+
 import { detectBigQueryType, generateSchemaFromRow, getBaseSchemaForTable, mergeSchemas } from '../schema-manager'
 
 describe('detectBigQueryType', () => {

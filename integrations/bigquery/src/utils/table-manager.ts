@@ -1,4 +1,5 @@
 import type { BigQuery, TableSchema } from '@google-cloud/bigquery'
+
 import { generateSchemaFromRow, getBaseSchemaForTable, mergeSchemas } from './schema-manager'
 
 /**
@@ -233,7 +234,7 @@ export class TableManager {
     tableType: string,
     rows: Record<string, any>[]
   ): Promise<void> {
-    if (rows.length === 0) return
+    if (rows.length === 0) {return}
 
     // Use first row as sample for schema
     const sampleRow = rows[0]
@@ -251,10 +252,10 @@ export class TableManager {
    */
   private getCachedSchema(datasetId: string, tableId: string): TableSchema | null {
     const datasetCache = this.schemaCache[datasetId]
-    if (!datasetCache) return null
+    if (!datasetCache) {return null}
 
     const tableCache = datasetCache[tableId]
-    if (!tableCache) return null
+    if (!tableCache) {return null}
 
     const now = Date.now()
     if (now - tableCache.lastUpdated > this.CACHE_TTL_MS) {

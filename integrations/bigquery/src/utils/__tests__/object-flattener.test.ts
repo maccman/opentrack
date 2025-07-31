@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { flattenObject } from '../object-flattener'
 
 describe('flattenObject', () => {

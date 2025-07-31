@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+
 import { aliasEventSchema, groupEventSchema, identifyEventSchema, trackEventSchema } from '../index'
 
 describe('Field Constraints and Limits', () => {

@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { transformToRow } from '../row-transformer'
 
 // Mock Date.now() to have consistent timestamps in tests

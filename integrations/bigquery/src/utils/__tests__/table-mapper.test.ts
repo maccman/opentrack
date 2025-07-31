@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { describe, expect, it } from 'vitest'
+
 import { getTableName, getTableNames } from '../table-mapper'
 
 // Helper functions to create test payloads

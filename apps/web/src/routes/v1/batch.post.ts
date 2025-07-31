@@ -8,7 +8,7 @@ const integrationManager = new IntegrationManager()
 interface BatchPayload {
   batch: Array<{
     type: 'track' | 'identify' | 'page' | 'group' | 'alias'
-    [key: string]: any
+    [key: string]: unknown
   }>
 }
 
@@ -71,7 +71,12 @@ export default defineEventHandler(async (event) => {
 
   // Return success if at least some events were processed
   if (processedEvents.length > 0) {
-    const response: any = {
+    const response: {
+      success: boolean
+      processed: number
+      total: number
+      errors?: Array<{ error: string; details?: unknown; type?: string }>
+    } = {
       success: true,
       processed: processedEvents.length,
       total: body.batch.length,

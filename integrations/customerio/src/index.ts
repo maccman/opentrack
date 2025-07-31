@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
 import { TrackClient } from 'customerio-node'
+
 import { CustomerioErrorHandler, CustomerioTransformer, RegionManager, type CustomerioRegion } from './utils'
 
 export interface CustomerioConfig {

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+
 import { aliasEventSchema, groupEventSchema, identifyEventSchema, pageEventSchema, trackEventSchema } from '../index'
 
 describe('Real-world Examples from Documentation', () => {

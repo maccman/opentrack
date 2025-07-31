@@ -1,10 +1,20 @@
-// Ocavue default config isn't working for some reason
-import { defineConfig } from 'eslint-define-config'
+import { defineESLintConfig } from '@ocavue/eslint-config'
 
-export default defineConfig({
-  ignores: ['**/*.md', '.nitro/'],
-  rules: {
-    // Require curly braces for all control statements
-    curly: ['error', 'all'],
+export default defineESLintConfig(
+  {
+    typescript: true,
+    prettier: true,
   },
-})
+  {
+    ignores: ['**/*.md', '.nitro/', '**/.nitro/', '**/.output/'],
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      // Disable usage of any type
+      '@typescript-eslint/no-explicit-any': 'error',
+      // Require curly braces for all control statements
+      curly: ['error', 'all'],
+    },
+  }
+)

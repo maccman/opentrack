@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
 import { BigQuery } from '@google-cloud/bigquery'
+
 import { getTableNames, TableManager, transformToRow } from './utils'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload

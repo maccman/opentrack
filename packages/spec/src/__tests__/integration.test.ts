@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '../index'
 
 describe('Integration Interface', () => {
@@ -7,11 +8,11 @@ describe('Integration Interface', () => {
     const mockIntegration: Integration = {
       name: 'Test Integration',
       isEnabled: () => true,
-      track: async (payload: TrackPayload) => {},
-      identify: async (payload: IdentifyPayload) => {},
-      page: async (payload: PagePayload) => {},
-      group: async (payload: GroupPayload) => {},
-      alias: async (payload: AliasPayload) => {},
+      track: (_payload: TrackPayload) => Promise.resolve(),
+      identify: (_payload: IdentifyPayload) => Promise.resolve(),
+      page: (_payload: PagePayload) => Promise.resolve(),
+      group: (_payload: GroupPayload) => Promise.resolve(),
+      alias: (_payload: AliasPayload) => Promise.resolve(),
     }
 
     expect(mockIntegration.name).toBe('Test Integration')
@@ -23,61 +24,37 @@ describe('Integration Interface', () => {
     expect(typeof mockIntegration.alias).toBe('function')
   })
 
-  test('should support optional init method', () => {
-    const integrationWithInit: Integration = {
-      name: 'Test Integration',
-      isEnabled: () => true,
-      init: async () => {
-        // Initialization logic
-      },
-      track: async (payload: TrackPayload) => {},
-      identify: async (payload: IdentifyPayload) => {},
-      page: async (payload: PagePayload) => {},
-      group: async (payload: GroupPayload) => {},
-      alias: async (payload: AliasPayload) => {},
-    }
-
-    expect(typeof integrationWithInit.init).toBe('function')
-
-    const integrationWithoutInit: Integration = {
-      name: 'Test Integration',
-      isEnabled: () => true,
-      track: async (payload: TrackPayload) => {},
-      identify: async (payload: IdentifyPayload) => {},
-      page: async (payload: PagePayload) => {},
-      group: async (payload: GroupPayload) => {},
-      alias: async (payload: AliasPayload) => {},
-    }
-
-    expect(integrationWithoutInit.init).toBeUndefined()
-  })
-
   test('should accept proper payload types for each method', async () => {
     const mockIntegration: Integration = {
       name: 'Test Integration',
       isEnabled: () => true,
-      track: async (payload: TrackPayload) => {
+      track: (payload: TrackPayload) => {
         expect(payload.type).toBe('track')
         expect(payload.event).toBeDefined()
         expect(payload.userId || payload.anonymousId).toBeDefined()
+        return Promise.resolve()
       },
-      identify: async (payload: IdentifyPayload) => {
+      identify: (payload: IdentifyPayload) => {
         expect(payload.type).toBe('identify')
         expect(payload.userId || payload.anonymousId).toBeDefined()
+        return Promise.resolve()
       },
-      page: async (payload: PagePayload) => {
+      page: (payload: PagePayload) => {
         expect(payload.type).toBe('page')
         expect(payload.userId || payload.anonymousId).toBeDefined()
+        return Promise.resolve()
       },
-      group: async (payload: GroupPayload) => {
+      group: (payload: GroupPayload) => {
         expect(payload.type).toBe('group')
         expect(payload.groupId).toBeDefined()
         expect(payload.userId || payload.anonymousId).toBeDefined()
+        return Promise.resolve()
       },
-      alias: async (payload: AliasPayload) => {
+      alias: (payload: AliasPayload) => {
         expect(payload.type).toBe('alias')
         expect(payload.userId).toBeDefined()
         expect(payload.previousId).toBeDefined()
+        return Promise.resolve()
       },
     }
 
@@ -115,19 +92,19 @@ describe('Integration Interface', () => {
     const disabledIntegration: Integration = {
       name: 'Disabled Integration',
       isEnabled: () => false,
-      track: async (payload: TrackPayload) => {
+      track: (_payload: TrackPayload) => {
         throw new Error('Should not be called when disabled')
       },
-      identify: async (payload: IdentifyPayload) => {
+      identify: (_payload: IdentifyPayload) => {
         throw new Error('Should not be called when disabled')
       },
-      page: async (payload: PagePayload) => {
+      page: (_payload: PagePayload) => {
         throw new Error('Should not be called when disabled')
       },
-      group: async (payload: GroupPayload) => {
+      group: (_payload: GroupPayload) => {
         throw new Error('Should not be called when disabled')
       },
-      alias: async (payload: AliasPayload) => {
+      alias: (_payload: AliasPayload) => {
         throw new Error('Should not be called when disabled')
       },
     }
@@ -142,23 +119,26 @@ describe('Integration Interface', () => {
     const complexIntegration: Integration = {
       name: 'Complex Integration',
       isEnabled: () => true,
-      init: async () => {
-        initCalled = true
-      },
-      track: async (payload: TrackPayload) => {
+      init: () => Promise.resolve(),
+      track: (payload: TrackPayload) => {
         eventsProcessed.push(`track:${payload.event}`)
+        return Promise.resolve()
       },
-      identify: async (payload: IdentifyPayload) => {
+      identify: (payload: IdentifyPayload) => {
         eventsProcessed.push(`identify:${payload.userId || payload.anonymousId}`)
+        return Promise.resolve()
       },
-      page: async (payload: PagePayload) => {
+      page: (payload: PagePayload) => {
         eventsProcessed.push(`page:${payload.name || 'unnamed'}`)
+        return Promise.resolve()
       },
-      group: async (payload: GroupPayload) => {
+      group: (payload: GroupPayload) => {
         eventsProcessed.push(`group:${payload.groupId}`)
+        return Promise.resolve()
       },
-      alias: async (payload: AliasPayload) => {
+      alias: (payload: AliasPayload) => {
         eventsProcessed.push(`alias:${payload.previousId}->${payload.userId}`)
+        return Promise.resolve()
       },
     }
 
@@ -212,19 +192,19 @@ describe('Integration Interface', () => {
     const errorIntegration: Integration = {
       name: 'Error Integration',
       isEnabled: () => true,
-      track: async (payload: TrackPayload) => {
+      track: (_payload: TrackPayload) => {
         throw new Error('Track failed')
       },
-      identify: async (payload: IdentifyPayload) => {
+      identify: (_payload: IdentifyPayload) => {
         throw new Error('Identify failed')
       },
-      page: async (payload: PagePayload) => {
+      page: (_payload: PagePayload) => {
         throw new Error('Page failed')
       },
-      group: async (payload: GroupPayload) => {
+      group: (_payload: GroupPayload) => {
         throw new Error('Group failed')
       },
-      alias: async (payload: AliasPayload) => {
+      alias: (_payload: AliasPayload) => {
         throw new Error('Alias failed')
       },
     }

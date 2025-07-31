@@ -18,6 +18,6 @@ export { snakeCase as convertToSnakeCase }
 export function eventNameToTableName(eventName: string): string {
   return eventName
     .toLowerCase() // Convert to lowercase first
-    .replace(/[^a-z0-9]+/g, '_') // Replace any non-alphanumeric characters with single underscore
+    .replace(/[^\da-z]+/g, '_') // Replace any non-alphanumeric characters with single underscore
     .replace(/^_+|_+$/g, '') // Remove leading and trailing underscores
 }
