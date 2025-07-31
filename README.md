@@ -39,25 +39,25 @@ Here’s a high-level overview of the data flow:
 ```mermaid
 graph TD
     subgraph "Client"
-        A[Segment SDK Request<br/>(e.g., POST /v1/track)]
+        A["Segment SDK Request<br/>e.g. POST /v1/track"]
     end
 
     subgraph "Vercel Serverless Function"
-        A --> B{Nitro API Endpoint};
-        B --> C[1. Parse & Validate Payload<br/>(using Zod)];
-        C --> D[2. Immediately Return 200 OK];
-        C --> E[3. Process Event Asynchronously];
+        A --> B{Nitro API Endpoint}
+        B --> C["1. Parse & Validate Payload<br/>using Zod"]
+        C --> D["2. Immediately Return 200 OK"]
+        C --> E["3. Process Event Asynchronously"]
     end
 
     subgraph "Async Processing"
-        E --> F{Integration Manager};
-        F --> G[BigQuery Integration];
-        F --> H[Customer.io Integration];
+        E --> F{Integration Manager}
+        F --> G[BigQuery Integration]
+        F --> H[Customer.io Integration]
     end
 
     subgraph "Downstream Services"
-        G --> J[(Google BigQuery)];
-        H --> K[(Customer.io API)];
+        G --> J[(Google BigQuery)]
+        H --> K[(Customer.io API)]
     end
 ```
 
