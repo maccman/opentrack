@@ -19,7 +19,7 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
  */
 export function createConfig(options: AnalyticsOptions = {}): Required<AnalyticsOptions> {
   const config = { ...DEFAULT_CONFIG, ...options }
-  
+
   // If a custom storage prefix is provided, update the key names
   if (options.storagePrefix && options.storagePrefix !== DEFAULT_CONFIG.storagePrefix) {
     const prefix = options.storagePrefix
@@ -27,6 +27,6 @@ export function createConfig(options: AnalyticsOptions = {}): Required<Analytics
     config.anonymousIdKey = options.anonymousIdKey || `${prefix}anonymous_id`
     config.traitsKey = options.traitsKey || `${prefix}traits`
   }
-  
+
   return config
 }

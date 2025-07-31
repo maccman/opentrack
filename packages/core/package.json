@@ -17,6 +17,7 @@
     "@app/utils": "workspace:*",
     "@integrations/bigquery": "workspace:*",
     "@integrations/customerio": "workspace:*",
+    "pino": "^9.7.0",
     "zod": "^3.24.3"
   },
   "devDependencies": {

@@ -1,7 +1,9 @@
+import type { LoggerConfig } from '@app/core'
 import { IntegrationManager } from '@app/core'
 import type { Integration } from '@app/spec'
 import { BigQueryIntegration, type BigQueryIntegrationConfig } from '@integrations/bigquery'
 import { CustomerioIntegration, type CustomerioConfig } from '@integrations/customerio'
+import pino from 'pino'
 
 function createIntegrations(): Integration[] {
   const integrations: Integration[] = []
@@ -33,4 +35,22 @@ function createIntegrations(): Integration[] {
   return integrations
 }
 
-export const integrationManager = new IntegrationManager(createIntegrations())
+function createLoggerConfig(): LoggerConfig | undefined {
+  const debugEnabled = process.env.LIBROSEG_DEBUG === 'true' || process.env.NODE_ENV === 'development'
+
+  if (!debugEnabled) {
+    return undefined
+  }
+
+  const logger = pino({
+    name: 'IntegrationManager',
+    level: process.env.LIBROSEG_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  })
+
+  return {
+    enabled: true,
+    logger,
+  }
+}
+
+export const integrationManager = new IntegrationManager(createIntegrations(), createLoggerConfig())
