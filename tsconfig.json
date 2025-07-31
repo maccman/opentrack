@@ -2,22 +2,25 @@
   "extends": "@ocavue/tsconfig/es/root.json",
   "references": [
     {
-      "path": "./apps/web/tsconfig.json"
+        "path": "./apps/client/tsconfig.json"
     },
     {
-      "path": "./integrations/bigquery/tsconfig.json"
+        "path": "./apps/web/tsconfig.json"
     },
     {
-      "path": "./integrations/customerio/tsconfig.json"
+        "path": "./integrations/bigquery/tsconfig.json"
     },
     {
-      "path": "./packages/core/tsconfig.json"
+        "path": "./integrations/customerio/tsconfig.json"
     },
     {
-      "path": "./packages/spec/tsconfig.json"
+        "path": "./packages/core/tsconfig.json"
     },
     {
-      "path": "./packages/utils/tsconfig.json"
+        "path": "./packages/spec/tsconfig.json"
+    },
+    {
+        "path": "./packages/utils/tsconfig.json"
     }
-  ]
+]
 }

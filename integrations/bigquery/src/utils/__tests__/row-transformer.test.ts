@@ -329,7 +329,7 @@ describe('transformToRow', () => {
         messageId: 'test',
       }
 
-      expect(() => transformToRow(invalidPayload as any)).toThrow('Unknown payload type: unknown')
+      expect(() => transformToRow(invalidPayload as never)).toThrow('Unknown payload type: unknown')
     })
   })
 

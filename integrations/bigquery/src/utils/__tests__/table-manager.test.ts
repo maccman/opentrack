@@ -3,28 +3,39 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TableManager } from '../table-manager'
 
+// Mock spy functions
+const datasetSpy = vi.fn()
+const datasetExistsSpy = vi.fn()
+const datasetCreateSpy = vi.fn()
+const datasetTableSpy = vi.fn()
+const tableExistsSpy = vi.fn()
+const tableGetMetadataSpy = vi.fn()
+const tableCreateSpy = vi.fn()
+const tableSetMetadataSpy = vi.fn()
+const tableInsertSpy = vi.fn()
+
 // Mock BigQuery types
 function createMockTable(exists = false, schema?: TableSchema) {
   return {
-    exists: vi.fn().mockResolvedValue([exists]),
-    getMetadata: vi.fn().mockResolvedValue([{ schema }]),
-    create: vi.fn().mockResolvedValue(undefined),
-    setMetadata: vi.fn().mockResolvedValue(undefined),
-    insert: vi.fn().mockResolvedValue(undefined),
+    exists: tableExistsSpy.mockResolvedValue([exists]),
+    getMetadata: tableGetMetadataSpy.mockResolvedValue([{ schema }]),
+    create: tableCreateSpy.mockResolvedValue(undefined),
+    setMetadata: tableSetMetadataSpy.mockResolvedValue(undefined),
+    insert: tableInsertSpy.mockResolvedValue(undefined),
   }
 }
 
 function createMockDataset(exists = false) {
   return {
-    exists: vi.fn().mockResolvedValue([exists]),
-    create: vi.fn().mockResolvedValue(undefined),
-    table: vi.fn(),
+    exists: datasetExistsSpy.mockResolvedValue([exists]),
+    create: datasetCreateSpy.mockResolvedValue(undefined),
+    table: datasetTableSpy,
   }
 }
 
 function createMockBigQuery() {
   return {
-    dataset: vi.fn(),
+    dataset: datasetSpy,
   }
 }
 
@@ -42,8 +53,8 @@ describe('TableManager', () => {
     mockBigQuery = createMockBigQuery() as unknown as BigQuery
 
     // Setup the chain: bigquery.dataset().table()
-    ;(mockBigQuery.dataset as ReturnType<typeof vi.fn>).mockReturnValue(mockDataset)
-    ;(mockDataset.table as ReturnType<typeof vi.fn>).mockReturnValue(mockTable)
+    datasetSpy.mockReturnValue(mockDataset)
+    datasetTableSpy.mockReturnValue(mockTable)
 
     tableManager = new TableManager(mockBigQuery, 'test-project')
   })
@@ -51,13 +62,13 @@ describe('TableManager', () => {
   describe('ensureDatasetExists', () => {
     it('should create dataset if it does not exist', async () => {
       // Dataset doesn't exist
-      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
+      datasetExistsSpy.mockResolvedValue([false])
 
       await tableManager.ensureDatasetExists('test-dataset')
 
-      expect(mockBigQuery.dataset).toHaveBeenCalledWith('test-dataset')
-      expect(mockDataset.exists).toHaveBeenCalled()
-      expect(mockDataset.create).toHaveBeenCalledWith({
+      expect(datasetSpy).toHaveBeenCalledWith('test-dataset')
+      expect(datasetExistsSpy).toHaveBeenCalled()
+      expect(datasetCreateSpy).toHaveBeenCalledWith({
         location: 'US',
         metadata: {
           description: 'Libroseg analytics data for test-dataset',
@@ -71,13 +82,13 @@ describe('TableManager', () => {
 
     it('should not create dataset if it already exists', async () => {
       // Dataset exists
-      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
+      datasetExistsSpy.mockResolvedValue([true])
 
       await tableManager.ensureDatasetExists('test-dataset')
 
-      expect(mockBigQuery.dataset).toHaveBeenCalledWith('test-dataset')
-      expect(mockDataset.exists).toHaveBeenCalled()
-      expect(mockDataset.create).not.toHaveBeenCalled()
+      expect(datasetSpy).toHaveBeenCalledWith('test-dataset')
+      expect(datasetExistsSpy).toHaveBeenCalled()
+      expect(datasetCreateSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -88,27 +99,27 @@ describe('TableManager', () => {
       }
 
       // Table exists
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy.mockResolvedValue([{ schema: mockSchema }])
 
       const tableInfo = await tableManager.getTableInfo('test-dataset', 'test-table')
 
       expect(tableInfo.exists).toBe(true)
       expect(tableInfo.schema).toEqual(mockSchema)
-      expect(mockDataset.table).toHaveBeenCalledWith('test-table')
-      expect(mockTable.exists).toHaveBeenCalled()
-      expect(mockTable.getMetadata).toHaveBeenCalled()
+      expect(datasetTableSpy).toHaveBeenCalledWith('test-table')
+      expect(tableExistsSpy).toHaveBeenCalled()
+      expect(tableGetMetadataSpy).toHaveBeenCalled()
     })
 
     it('should return non-existent info when table does not exist', async () => {
       // Table doesn't exist
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
+      tableExistsSpy.mockResolvedValue([false])
 
       const tableInfo = await tableManager.getTableInfo('test-dataset', 'test-table')
 
       expect(tableInfo.exists).toBe(false)
       expect(tableInfo.schema).toBeUndefined()
-      expect(mockTable.getMetadata).not.toHaveBeenCalled()
+      expect(tableGetMetadataSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -122,10 +133,13 @@ describe('TableManager', () => {
 
       await tableManager.createTable('test-dataset', 'test-table', 'tracks', sampleRow)
 
-      expect(mockDataset.table).toHaveBeenCalledWith('test-table')
-      expect(mockTable.create).toHaveBeenCalled()
+      expect(datasetTableSpy).toHaveBeenCalledWith('test-table')
+      expect(tableCreateSpy).toHaveBeenCalled()
 
-      const createCall = (mockTable.create as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      const createCall = tableCreateSpy.mock.calls[0][0] as {
+        schema: { fields: unknown[] }
+        metadata: { description: string; labels: { table_type: string } }
+      }
       expect(createCall.schema).toBeDefined()
       expect(createCall.schema.fields).toBeDefined()
       expect(createCall.metadata.description).toBe('Libroseg tracks data table')
@@ -151,9 +165,11 @@ describe('TableManager', () => {
       const updated = await tableManager.updateTableSchema('test-dataset', 'test-table', newRow, currentSchema)
 
       expect(updated).toBe(true)
-      expect(mockTable.setMetadata).toHaveBeenCalled()
+      expect(tableSetMetadataSpy).toHaveBeenCalled()
 
-      const setMetadataCall = (mockTable.setMetadata as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      const setMetadataCall = tableSetMetadataSpy.mock.calls[0][0] as {
+        schema: { fields: unknown[] }
+      }
       expect(setMetadataCall.schema.fields).toHaveLength(3)
     })
 
@@ -173,23 +189,23 @@ describe('TableManager', () => {
       const updated = await tableManager.updateTableSchema('test-dataset', 'test-table', newRow, currentSchema)
 
       expect(updated).toBe(false)
-      expect(mockTable.setMetadata).not.toHaveBeenCalled()
+      expect(tableSetMetadataSpy).not.toHaveBeenCalled()
     })
   })
 
   describe('ensureTableReady', () => {
     it('should create table when it does not exist', async () => {
       // Dataset exists, table doesn't
-      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([false])
 
       const sampleRow = { id: 'test', event: 'Test Event' }
 
       await tableManager.ensureTableReady('test-dataset', 'test-table', 'tracks', sampleRow)
 
-      expect(mockDataset.exists).toHaveBeenCalled()
-      expect(mockTable.exists).toHaveBeenCalled()
-      expect(mockTable.create).toHaveBeenCalled()
+      expect(datasetExistsSpy).toHaveBeenCalled()
+      expect(tableExistsSpy).toHaveBeenCalled()
+      expect(tableCreateSpy).toHaveBeenCalled()
     })
 
     it('should update schema when table exists but schema needs updating', async () => {
@@ -198,26 +214,26 @@ describe('TableManager', () => {
       }
 
       // Dataset and table exist
-      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: existingSchema }])
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy.mockResolvedValue([{ schema: existingSchema }])
 
       const sampleRow = { id: 'test', new_field: 'new' } // Has new field
 
       await tableManager.ensureTableReady('test-dataset', 'test-table', 'tracks', sampleRow)
 
-      expect(mockDataset.exists).toHaveBeenCalled()
-      expect(mockTable.exists).toHaveBeenCalled()
-      expect(mockTable.getMetadata).toHaveBeenCalled()
-      expect(mockTable.setMetadata).toHaveBeenCalled()
+      expect(datasetExistsSpy).toHaveBeenCalled()
+      expect(tableExistsSpy).toHaveBeenCalled()
+      expect(tableGetMetadataSpy).toHaveBeenCalled()
+      expect(tableSetMetadataSpy).toHaveBeenCalled()
     })
   })
 
   describe('insertWithAutoSchema', () => {
     it('should handle table creation and data insertion', async () => {
       // Dataset exists, table doesn't
-      ;(mockDataset.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([false])
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([false])
 
       const rows = [
         { id: 'test1', event: 'Test Event' },
@@ -226,17 +242,17 @@ describe('TableManager', () => {
 
       await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', rows)
 
-      expect(mockTable.create).toHaveBeenCalled()
-      expect(mockTable.insert).toHaveBeenCalledWith(rows)
+      expect(tableCreateSpy).toHaveBeenCalled()
+      expect(tableInsertSpy).toHaveBeenCalledWith(rows)
     })
 
     it('should handle empty rows array', async () => {
       await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', [])
 
       // Should not make any BigQuery calls
-      expect(mockDataset.exists).not.toHaveBeenCalled()
-      expect(mockTable.exists).not.toHaveBeenCalled()
-      expect(mockTable.insert).not.toHaveBeenCalled()
+      expect(datasetExistsSpy).not.toHaveBeenCalled()
+      expect(tableExistsSpy).not.toHaveBeenCalled()
+      expect(tableInsertSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -246,18 +262,18 @@ describe('TableManager', () => {
         fields: [{ name: 'id', type: 'STRING', mode: 'REQUIRED' }],
       }
 
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy.mockResolvedValue([{ schema: mockSchema }])
 
       // First call
       const tableInfo1 = await tableManager.getTableInfo('test-dataset', 'test-table')
       expect(tableInfo1.schema).toEqual(mockSchema)
-      expect(mockTable.getMetadata).toHaveBeenCalledTimes(1)
+      expect(tableGetMetadataSpy).toHaveBeenCalledTimes(1)
 
       // Second call should use cache
       const tableInfo2 = await tableManager.getTableInfo('test-dataset', 'test-table')
       expect(tableInfo2.schema).toEqual(mockSchema)
-      expect(mockTable.getMetadata).toHaveBeenCalledTimes(1) // Still only 1 call
+      expect(tableGetMetadataSpy).toHaveBeenCalledTimes(1) // Still only 1 call
     })
 
     it('should clear cache when requested', async () => {
@@ -265,19 +281,19 @@ describe('TableManager', () => {
         fields: [{ name: 'id', type: 'STRING', mode: 'REQUIRED' }],
       }
 
-      ;(mockTable.exists as ReturnType<typeof vi.fn>).mockResolvedValue([true])
-      ;(mockTable.getMetadata as ReturnType<typeof vi.fn>).mockResolvedValue([{ schema: mockSchema }])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy.mockResolvedValue([{ schema: mockSchema }])
 
       // First call to populate cache
       await tableManager.getTableInfo('test-dataset', 'test-table')
-      expect(mockTable.getMetadata).toHaveBeenCalledTimes(1)
+      expect(tableGetMetadataSpy).toHaveBeenCalledTimes(1)
 
       // Clear cache
       tableManager.clearCache('test-dataset', 'test-table')
 
       // Next call should hit the API again
       await tableManager.getTableInfo('test-dataset', 'test-table')
-      expect(mockTable.getMetadata).toHaveBeenCalledTimes(2)
+      expect(tableGetMetadataSpy).toHaveBeenCalledTimes(2)
     })
   })
 })

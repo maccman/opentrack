@@ -87,8 +87,9 @@ export class TableManager {
         return { exists: false }
       }
 
-      const [metadata] = await table.getMetadata()
-      const schema = (metadata as { schema: TableSchema }).schema
+      const metadataResult = await table.getMetadata()
+      const metadata = metadataResult[0] as { schema: TableSchema }
+      const schema = metadata.schema
 
       // Cache the schema
       this.setCachedSchema(datasetId, tableId, schema)

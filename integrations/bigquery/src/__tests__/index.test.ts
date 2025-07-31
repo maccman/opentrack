@@ -57,7 +57,9 @@ describe('BigQueryIntegration', () => {
       const payload = createTrackPayload()
       await integration.track(payload)
       const MockedTableManager = vi.mocked(TableManager)
-      const mockTableManagerInstance = MockedTableManager.mock.instances[0] as any
+      const mockTableManagerInstance = MockedTableManager.mock.instances[0] as unknown as {
+        insertWithAutoSchema: ReturnType<typeof vi.fn>
+      }
       expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(2)
     })
   })

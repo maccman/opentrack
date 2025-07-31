@@ -23,7 +23,13 @@ vi.mock('customerio-node', () => ({
 
 describe('CustomerioIntegration', () => {
   let integration: CustomerioIntegration
-  let mockClient: any
+  let mockClient: {
+    identify: ReturnType<typeof vi.fn>
+    track: ReturnType<typeof vi.fn>
+    trackAnonymous: ReturnType<typeof vi.fn>
+    trackPageView: ReturnType<typeof vi.fn>
+    mergeCustomers: ReturnType<typeof vi.fn>
+  }
   let originalEnv: Record<string, string | undefined>
 
   beforeEach(() => {
@@ -41,7 +47,17 @@ describe('CustomerioIntegration', () => {
     })
 
     // Get the mocked client instance
-    mockClient = (integration as any).client
+    mockClient = (
+      integration as unknown as {
+        client: {
+          identify: ReturnType<typeof vi.fn>
+          track: ReturnType<typeof vi.fn>
+          trackAnonymous: ReturnType<typeof vi.fn>
+          trackPageView: ReturnType<typeof vi.fn>
+          mergeCustomers: ReturnType<typeof vi.fn>
+        }
+      }
+    ).client
   })
 
   afterEach(() => {
@@ -285,7 +301,7 @@ describe('CustomerioIntegration', () => {
       // Should update user with group attributes
       expect(mockClient.identify).toHaveBeenCalledWith('user123', {
         group_company456: true,
-        group_company456_joined_at: expect.any(Number),
+        group_company456_joined_at: expect.any(Number) as number,
         group_name: 'Acme Corp',
         group_industry: 'Technology',
       })
@@ -324,13 +340,35 @@ describe('CustomerioIntegration', () => {
 
   describe('setRegion', () => {
     it('should update region and recreate client', () => {
-      const originalClient = (integration as any).client
+      const originalClient = (
+        integration as unknown as {
+          client: {
+            identify: ReturnType<typeof vi.fn>
+            track: ReturnType<typeof vi.fn>
+            trackAnonymous: ReturnType<typeof vi.fn>
+            trackPageView: ReturnType<typeof vi.fn>
+            mergeCustomers: ReturnType<typeof vi.fn>
+          }
+        }
+      ).client
 
       integration.setRegion('EU')
 
       expect(integration.getConfig().region).toBe('EU')
       // Client should be recreated (different instance)
-      expect((integration as any).client).not.toBe(originalClient)
+      expect(
+        (
+          integration as unknown as {
+            client: {
+              identify: ReturnType<typeof vi.fn>
+              track: ReturnType<typeof vi.fn>
+              trackAnonymous: ReturnType<typeof vi.fn>
+              trackPageView: ReturnType<typeof vi.fn>
+              mergeCustomers: ReturnType<typeof vi.fn>
+            }
+          }
+        ).client
+      ).not.toBe(originalClient)
     })
   })
 

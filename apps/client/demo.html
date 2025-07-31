@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Libroseg Analytics Demo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .demo-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 3px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a87;
+      }
+      .output {
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 3px;
+        margin: 10px 0;
+        font-family: monospace;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Libroseg Analytics Demo</h1>
+    <p>This demo shows how to use the Libroseg Analytics JavaScript client library.</p>
+
+    <div class="demo-section">
+      <h2>Current User Identity</h2>
+      <div id="user-info" class="output">Loading...</div>
+      <button onclick="refreshUserInfo()">Refresh User Info</button>
+      <button onclick="resetUser()">Reset User</button>
+    </div>
+
+    <div class="demo-section">
+      <h2>Identify User</h2>
+      <button onclick="identifyUser()">Identify User</button>
+      <button onclick="updateTraits()">Update User Traits</button>
+    </div>
+
+    <div class="demo-section">
+      <h2>Track Events</h2>
+      <button onclick="trackButtonClick()">Track Button Click</button>
+      <button onclick="trackPurchase()">Track Purchase</button>
+      <button onclick="trackCustomEvent()">Track Custom Event</button>
+    </div>
+
+    <div class="demo-section">
+      <h2>Page Tracking</h2>
+      <button onclick="trackPageView()">Track Page View</button>
+      <button onclick="trackNamedPage()">Track Named Page</button>
+    </div>
+
+    <div class="demo-section">
+      <h2>Group & Alias</h2>
+      <button onclick="joinGroup()">Join Group</button>
+      <button onclick="aliasUser()">Alias User</button>
+    </div>
+
+    <div class="demo-section">
+      <h2>Manual Flush</h2>
+      <button onclick="flushEvents()">Flush Events Now</button>
+      <p><small>Events are automatically flushed every 10 seconds or when 20 events are queued.</small></p>
+    </div>
+
+    <div class="demo-section">
+      <h2>Debug Output</h2>
+      <div id="debug-output" class="output">Events will appear here when debug mode is enabled...</div>
+      <button onclick="toggleDebug()">Toggle Debug Mode</button>
+      <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <!-- Load the analytics library -->
+    <script src="dist/analytics.js"></script>
+
+    <script>
+      // Enable debug mode by default for demo
+      analytics.load('demo-write-key', {
+        host: 'http://localhost:3000',
+        debug: true,
+        flushAt: 5, // Flush after 5 events for demo
+        flushInterval: 5000, // Flush every 5 seconds for demo
+      })
+
+      let debugEnabled = true
+
+      // Override console.log to capture debug output
+      const originalLog = console.log
+      const originalWarn = console.warn
+      const originalError = console.error
+
+      function captureLog(level, ...args) {
+        const output = document.getElementById('debug-output')
+        const timestamp = new Date().toLocaleTimeString()
+        const message = args
+          .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)))
+          .join(' ')
+
+        output.textContent += `[${timestamp}] ${level.toUpperCase()}: ${message}\n`
+        output.scrollTop = output.scrollHeight
+      }
+
+      console.log = (...args) => {
+        if (args[0] && args[0].includes('[Analytics]')) {
+          captureLog('info', ...args)
+        }
+        originalLog.apply(console, args)
+      }
+
+      console.warn = (...args) => {
+        if (args[0] && args[0].includes('[Analytics]')) {
+          captureLog('warn', ...args)
+        }
+        originalWarn.apply(console, args)
+      }
+
+      console.error = (...args) => {
+        if (args[0] && args[0].includes('[Analytics]')) {
+          captureLog('error', ...args)
+        }
+        originalError.apply(console, args)
+      }
+
+      // Demo functions
+      function refreshUserInfo() {
+        const user = analytics.user()
+        const info = {
+          userId: user.id(),
+          anonymousId: user.anonymousId(),
+          traits: user.traits(),
+        }
+        document.getElementById('user-info').textContent = JSON.stringify(info, null, 2)
+      }
+
+      function resetUser() {
+        analytics.reset()
+        refreshUserInfo()
+        captureLog('info', 'User identity reset')
+      }
+
+      function identifyUser() {
+        analytics.identify('demo-user-123', {
+          email: 'demo@example.com',
+          firstName: 'Demo',
+          lastName: 'User',
+          plan: 'premium',
+          signupDate: new Date().toISOString(),
+        })
+        setTimeout(refreshUserInfo, 100)
+      }
+
+      function updateTraits() {
+        analytics.identify({
+          lastLogin: new Date().toISOString(),
+          loginCount: Math.floor(Math.random() * 100) + 1,
+          favoriteFeature: 'analytics',
+        })
+        setTimeout(refreshUserInfo, 100)
+      }
+
+      function trackButtonClick() {
+        analytics.track('Button Clicked', {
+          buttonText: 'Demo Button',
+          location: 'demo-page',
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      function trackPurchase() {
+        analytics.track('Product Purchased', {
+          productId: 'demo-product-456',
+          productName: 'Premium Widget',
+          price: 99.99,
+          currency: 'USD',
+          category: 'Electronics',
+          quantity: 1,
+          orderId: 'order-' + Date.now(),
+        })
+      }
+
+      function trackCustomEvent() {
+        analytics.track('Demo Event Triggered', {
+          demoVersion: '1.0.0',
+          browserInfo: navigator.userAgent,
+          randomValue: Math.random(),
+          customData: {
+            nested: 'object',
+            array: [1, 2, 3],
+            boolean: true,
+          },
+        })
+      }
+
+      function trackPageView() {
+        analytics.page()
+      }
+
+      function trackNamedPage() {
+        analytics.page('Demo', 'Analytics Demo Page', {
+          section: 'client-library',
+          version: '1.0.0',
+          loadTime: performance.now(),
+        })
+      }
+
+      function joinGroup() {
+        analytics.group('demo-company-789', {
+          name: 'Demo Company Inc',
+          industry: 'Technology',
+          employees: 50,
+          plan: 'enterprise',
+          website: 'https://demo-company.com',
+        })
+      }
+
+      function aliasUser() {
+        const newUserId = 'merged-user-' + Date.now()
+        analytics.alias(newUserId)
+        setTimeout(refreshUserInfo, 100)
+      }
+
+      function flushEvents() {
+        analytics.flush()
+        captureLog('info', 'Events manually flushed')
+      }
+
+      function toggleDebug() {
+        debugEnabled = !debugEnabled
+        analytics.load('demo-write-key', {
+          host: 'http://localhost:3000',
+          debug: debugEnabled,
+          flushAt: 5,
+          flushInterval: 5000,
+        })
+        captureLog('info', `Debug mode ${debugEnabled ? 'enabled' : 'disabled'}`)
+      }
+
+      function clearOutput() {
+        document.getElementById('debug-output').textContent = ''
+      }
+
+      // Initialize user info display
+      analytics.ready(() => {
+        refreshUserInfo()
+        captureLog('info', 'Analytics library loaded and ready')
+      })
+
+      // Track initial page view
+      analytics.ready(() => {
+        analytics.page('Demo', 'Libroseg Analytics Demo', {
+          demoVersion: '1.0.0',
+          loadedAt: new Date().toISOString(),
+        })
+      })
+    </script>
+  </body>
+</html>
