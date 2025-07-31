@@ -39,14 +39,14 @@ Here’s a high-level overview of the data flow:
 ```mermaid
 graph TD
     subgraph "Client"
-        A["Segment SDK Request<br/>e.g. POST /v1/track"]
+        A["Segment SDK Request"]
     end
 
     subgraph "Vercel Serverless Function"
         A --> B{Nitro API Endpoint}
-        B --> C["1. Parse & Validate Payload<br/>using Zod"]
-        C --> D["2. Immediately Return 200 OK"]
-        C --> E["3. Process Event Asynchronously"]
+        B --> C["Parse & Validate Payload"]
+        C --> D["Return 200 OK"]
+        C --> E["Process Event Async"]
     end
 
     subgraph "Async Processing"
