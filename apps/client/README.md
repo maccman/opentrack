@@ -309,7 +309,7 @@ analytics.load('your-write-key', {
 
 | Option           | Type    | Default                    | Description                                    |
 | ---------------- | ------- | -------------------------- | ---------------------------------------------- |
-| `host`           | string  | `'http://localhost:3000'`  | Your OpenTrack instance URL                    |
+| `host`           | string  | `'/'`                      | Your OpenTrack instance URL                    |
 | `writeKey`       | string  | `''`                       | Write key for authentication                   |
 | `flushAt`        | number  | `20`                       | Number of events to queue before auto-flushing |
 | `flushInterval`  | number  | `10000`                    | Time in milliseconds between auto-flushes      |

@@ -4,7 +4,7 @@ import type { AnalyticsOptions } from './types'
 
 export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   writeKey: '',
-  host: 'http://localhost:3000',
+  host: '',
   flushAt: 20,
   flushInterval: 10000, // 10 seconds
   debug: false,
