@@ -1,5 +1,6 @@
- 
- 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import type { TrackPayload } from '@app/spec'
 import axios from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

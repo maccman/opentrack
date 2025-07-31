@@ -1,4 +1,5 @@
- 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
