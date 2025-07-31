@@ -1,11 +1,5 @@
 import { IntegrationManager } from '@app/core'
-import { 
-  aliasEventSchema, 
-  groupEventSchema, 
-  identifyEventSchema, 
-  pageEventSchema, 
-  trackEventSchema
-} from '@app/spec'
+import { aliasEventSchema, groupEventSchema, identifyEventSchema, pageEventSchema, trackEventSchema } from '@app/spec'
 import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
@@ -32,7 +26,7 @@ export default defineEventHandler(async (event) => {
   for (const item of body.batch) {
     try {
       let validation
-      
+
       switch (item.type) {
         case 'track':
           validation = trackEventSchema.safeParse(item)
@@ -55,10 +49,10 @@ export default defineEventHandler(async (event) => {
       }
 
       if (!validation.success) {
-        errors.push({ 
-          error: 'Invalid payload', 
+        errors.push({
+          error: 'Invalid payload',
           details: validation.error.issues,
-          type: item.type 
+          type: item.type,
         })
         continue
       }
@@ -66,28 +60,27 @@ export default defineEventHandler(async (event) => {
       // Process the validated event
       waitUntil(integrationManager.process(validation.data))
       processedEvents.push({ type: item.type, status: 'processed' })
-      
     } catch (error) {
-      errors.push({ 
-        error: 'Processing failed', 
+      errors.push({
+        error: 'Processing failed',
         details: error instanceof Error ? error.message : 'Unknown error',
-        type: item.type 
+        type: item.type,
       })
     }
   }
 
   // Return success if at least some events were processed
   if (processedEvents.length > 0) {
-    const response: any = { 
-      success: true, 
+    const response: any = {
+      success: true,
       processed: processedEvents.length,
-      total: body.batch.length
+      total: body.batch.length,
     }
-    
+
     if (errors.length > 0) {
       response.errors = errors
     }
-    
+
     return response
   } else {
     event.node.res.statusCode = 400

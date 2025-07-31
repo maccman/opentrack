@@ -1,7 +1,7 @@
+import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import Analytics from 'analytics-node'
-import { describe, it, expect } from 'vitest'
 import { $fetch } from 'nitro-test-utils/e2e'
-import type { TrackPayload, IdentifyPayload, PagePayload, GroupPayload, AliasPayload } from '@app/spec'
+import { describe, expect, it } from 'vitest'
 
 describe('Analytics Integration Tests', () => {
   let analytics: Analytics
@@ -20,7 +20,7 @@ describe('Analytics Integration Tests', () => {
 
   it('should handle track events', async () => {
     analytics = createAnalyticsClient()
-    
+
     const trackData: TrackPayload = {
       userId: 'test-user-123',
       event: 'Test Event',
@@ -51,7 +51,7 @@ describe('Analytics Integration Tests', () => {
 
   it('should handle identify events', async () => {
     analytics = createAnalyticsClient()
-    
+
     const identifyData: IdentifyPayload = {
       userId: 'test-user-123',
       traits: {
@@ -80,7 +80,7 @@ describe('Analytics Integration Tests', () => {
 
   it('should handle page events', async () => {
     analytics = createAnalyticsClient()
-    
+
     const pageData: PagePayload = {
       userId: 'test-user-123',
       name: 'Test Page',
@@ -110,7 +110,7 @@ describe('Analytics Integration Tests', () => {
 
   it('should handle group events', async () => {
     analytics = createAnalyticsClient()
-    
+
     const groupData: GroupPayload = {
       userId: 'test-user-123',
       groupId: 'test-group-456',
@@ -140,7 +140,7 @@ describe('Analytics Integration Tests', () => {
 
   it('should handle alias events', async () => {
     analytics = createAnalyticsClient()
-    
+
     const aliasData: AliasPayload = {
       userId: 'test-user-123',
       previousId: 'anonymous-user-789',
@@ -166,8 +166,8 @@ describe('Analytics Integration Tests', () => {
   it('should reject invalid payloads', async () => {
     const invalidTrackData = {
       // Missing required userId
-      event: 'Invalid Event', 
-      type: 'track'
+      event: 'Invalid Event',
+      type: 'track',
     }
 
     // Test the endpoint directly to ensure validation works
@@ -186,8 +186,8 @@ describe('Analytics Integration Tests', () => {
       userId: 'test-user-direct',
       timestamp: new Date(),
       context: {
-        library: { name: 'test', version: '1.0.0' }
-      }
+        library: { name: 'test', version: '1.0.0' },
+      },
     }
 
     // Test track endpoint
@@ -196,7 +196,7 @@ describe('Analytics Integration Tests', () => {
       body: {
         ...basePayload,
         event: 'Direct Test Event',
-        type: 'track'
+        type: 'track',
       },
     })
     expect(trackResponse.status).toBe(200)
@@ -204,11 +204,11 @@ describe('Analytics Integration Tests', () => {
 
     // Test identify endpoint
     const identifyResponse = await $fetch('/v1/identify', {
-      method: 'POST', 
+      method: 'POST',
       body: {
         ...basePayload,
         traits: { email: 'direct@test.com' },
-        type: 'identify'
+        type: 'identify',
       },
     })
     expect(identifyResponse.status).toBe(200)
@@ -220,7 +220,7 @@ describe('Analytics Integration Tests', () => {
       body: {
         ...basePayload,
         name: 'Direct Test Page',
-        type: 'page'
+        type: 'page',
       },
     })
     expect(pageResponse.status).toBe(200)
@@ -232,7 +232,7 @@ describe('Analytics Integration Tests', () => {
       body: {
         ...basePayload,
         groupId: 'direct-test-group',
-        type: 'group'
+        type: 'group',
       },
     })
     expect(groupResponse.status).toBe(200)
@@ -244,7 +244,7 @@ describe('Analytics Integration Tests', () => {
       body: {
         ...basePayload,
         previousId: 'direct-previous-id',
-        type: 'alias'
+        type: 'alias',
       },
     })
     expect(aliasResponse.status).toBe(200)
