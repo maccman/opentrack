@@ -5,29 +5,31 @@ import { getTableNames, TableManager, transformToRow } from './utils'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
+export interface BigQueryIntegrationConfig {
+  projectId: string
+  datasetId: string
+  autoTableManagement?: boolean
+}
+
 export class BigQueryIntegration implements Integration {
   public name = 'BigQuery'
-  private client: BigQuery | null = null
+  private client: BigQuery
   private tableManager: TableManager | null = null
-  private datasetId = process.env.BIGQUERY_DATASET
-  private projectId = process.env.BIGQUERY_PROJECT_ID
-  private autoTableManagement = process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT === 'true'
+  private config: BigQueryIntegrationConfig
 
-  constructor() {
+  constructor(config: BigQueryIntegrationConfig) {
+    this.config = {
+      autoTableManagement: true,
+      ...config,
+    }
     this.client = new BigQuery()
-    if (this.autoTableManagement) {
-      this.tableManager = new TableManager(this.client, this.projectId!)
+    if (this.config.autoTableManagement) {
+      this.tableManager = new TableManager(this.client, this.config.projectId)
     }
   }
 
-  public static isEnabled(): boolean {
-    const projectId = process.env.BIGQUERY_PROJECT_ID
-    const datasetId = process.env.BIGQUERY_DATASET
-    return !!(projectId && datasetId)
-  }
-
   private async insert(payload: Payload, tableName: string) {
-    if (!this.client || !this.datasetId) {
+    if (!this.client || !this.config.datasetId) {
       return
     }
 
@@ -36,10 +38,10 @@ export class BigQueryIntegration implements Integration {
     if (this.tableManager) {
       // Use table manager for auto-creation and schema evolution
       const tableType = this.getTableType(tableName)
-      await this.tableManager.insertWithAutoSchema(this.datasetId, tableName, tableType, [row])
+      await this.tableManager.insertWithAutoSchema(this.config.datasetId, tableName, tableType, [row])
     } else {
       // Direct insertion, will fail if schema is incorrect
-      await this.client.dataset(this.datasetId).table(tableName).insert([row])
+      await this.client.dataset(this.config.datasetId).table(tableName).insert([row])
     }
   }
 

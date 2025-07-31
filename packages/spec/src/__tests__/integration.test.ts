@@ -22,24 +22,6 @@ describe('Integration Interface', () => {
     expect(typeof mockIntegration.alias).toBe('function')
   })
 
-  test('should define IntegrationConstructor with static isEnabled', () => {
-    // Mock implementation of IntegrationConstructor
-    class MockIntegration implements Integration {
-      name = 'Test Integration'
-      static isEnabled(): boolean {
-        return true
-      }
-      track = (_payload: TrackPayload) => Promise.resolve()
-      identify = (_payload: IdentifyPayload) => Promise.resolve()
-      page = (_payload: PagePayload) => Promise.resolve()
-      group = (_payload: GroupPayload) => Promise.resolve()
-      alias = (_payload: AliasPayload) => Promise.resolve()
-    }
-
-    expect(typeof MockIntegration.isEnabled).toBe('function')
-    expect(MockIntegration.isEnabled()).toBe(true)
-  })
-
   test('should accept proper payload types for each method', async () => {
     const mockIntegration: Integration = {
       name: 'Test Integration',
@@ -103,39 +85,16 @@ describe('Integration Interface', () => {
     })
   })
 
-  test('should handle disabled integrations via static method', () => {
-    class DisabledIntegration implements Integration {
-      name = 'Disabled Integration'
-      static isEnabled(): boolean {
-        return false
-      }
-      track = (_payload: TrackPayload) => {
-        throw new Error('Should not be called when disabled')
-      }
-      identify = (_payload: IdentifyPayload) => {
-        throw new Error('Should not be called when disabled')
-      }
-      page = (_payload: PagePayload) => {
-        throw new Error('Should not be called when disabled')
-      }
-      group = (_payload: GroupPayload) => {
-        throw new Error('Should not be called when disabled')
-      }
-      alias = (_payload: AliasPayload) => {
-        throw new Error('Should not be called when disabled')
-      }
-    }
-
-    expect(DisabledIntegration.isEnabled()).toBe(false)
-  })
-
   test('should support complex integration scenarios', async () => {
     let initCalled = false
     let eventsProcessed: string[] = []
 
     const complexIntegration: Integration = {
       name: 'Complex Integration',
-      init: () => Promise.resolve(),
+      init: () => {
+        initCalled = true
+        return Promise.resolve()
+      },
       track: (payload: TrackPayload) => {
         eventsProcessed.push(`track:${payload.event}`)
         return Promise.resolve()

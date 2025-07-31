@@ -22,6 +22,11 @@ vi.mock('@google-cloud/bigquery', () => {
 })
 
 describe('BigQueryIntegration', () => {
+  const defaultConfig = {
+    projectId: 'test-project',
+    datasetId: 'test_dataset',
+  }
+
   const createTrackPayload = (overrides: Partial<TrackPayload> = {}): TrackPayload => ({
     type: 'track',
     messageId: 'test-message-id',
@@ -35,25 +40,16 @@ describe('BigQueryIntegration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env = {
-      ...process.env,
-      BIGQUERY_PROJECT_ID: 'test-project',
-      BIGQUERY_DATASET: 'test_dataset',
-    }
   })
 
   describe('with auto table management ENABLED', () => {
-    beforeEach(() => {
-      process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT = 'true'
-    })
-
     it('should initialize TableManager', () => {
-      new BigQueryIntegration()
+      new BigQueryIntegration({ ...defaultConfig, autoTableManagement: true })
       expect(TableManager).toHaveBeenCalledTimes(1)
     })
 
     it('should use TableManager to insert records', async () => {
-      const integration = new BigQueryIntegration()
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: true })
       const payload = createTrackPayload()
       await integration.track(payload)
       const MockedTableManager = vi.mocked(TableManager)
@@ -65,17 +61,13 @@ describe('BigQueryIntegration', () => {
   })
 
   describe('with auto table management DISABLED', () => {
-    beforeEach(() => {
-      process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT = 'false'
-    })
-
     it('should NOT initialize TableManager', () => {
-      new BigQueryIntegration()
+      new BigQueryIntegration({ ...defaultConfig, autoTableManagement: false })
       expect(TableManager).not.toHaveBeenCalled()
     })
 
     it('should use direct BigQuery client to insert records', async () => {
-      const integration = new BigQueryIntegration()
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: false })
       const payload = createTrackPayload()
       await integration.track(payload)
 
@@ -94,7 +86,7 @@ describe('BigQueryIntegration', () => {
     it('should fail gracefully if direct insertion fails', async () => {
       mockInsert.mockRejectedValueOnce(new Error('Schema mismatch'))
 
-      const integration = new BigQueryIntegration()
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: false })
       const payload = createTrackPayload()
 
       await expect(integration.track(payload)).rejects.toThrow('Schema mismatch')

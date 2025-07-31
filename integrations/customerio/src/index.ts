@@ -18,17 +18,15 @@ export class CustomerioIntegration implements Integration {
   private config: CustomerioConfig
   private regionManager: RegionManager
 
-  constructor(
-    config: CustomerioConfig = { siteId: process.env.CUSTOMERIO_SITE_ID!, apiKey: process.env.CUSTOMERIO_API_KEY! }
-  ) {
+  constructor(config: CustomerioConfig) {
     assertString(config.siteId, 'siteId is required')
     assertString(config.apiKey, 'apiKey is required')
 
     this.config = {
       timeout: 10000,
       retryAttempts: 3,
+      region: 'US',
       ...config,
-      region: config.region || RegionManager.fromEnvironment(),
     }
 
     this.regionManager = new RegionManager(this.config.region)
@@ -36,35 +34,6 @@ export class CustomerioIntegration implements Integration {
     this.client = new TrackClient(this.config.siteId, this.config.apiKey, {
       region: this.regionManager.getCustomerioRegion(),
       timeout: this.config.timeout,
-    })
-  }
-
-  /**
-   * Check if the integration is enabled
-   */
-  public static isEnabled(): boolean {
-    const siteId = process.env.CUSTOMERIO_SITE_ID
-    const apiKey = process.env.CUSTOMERIO_API_KEY
-    return !!(siteId && apiKey)
-  }
-
-  /**
-   * Create a Customer.io integration from environment variables
-   */
-  static fromEnvironment(): CustomerioIntegration {
-    const siteId = process.env.CUSTOMERIO_SITE_ID
-    const apiKey = process.env.CUSTOMERIO_API_KEY
-
-    if (!siteId || !apiKey) {
-      throw new Error(
-        'Customer.io credentials not found. Please set CUSTOMERIO_SITE_ID and CUSTOMERIO_API_KEY environment variables.'
-      )
-    }
-
-    return new CustomerioIntegration({
-      siteId,
-      apiKey,
-      region: RegionManager.fromEnvironment(),
     })
   }
 

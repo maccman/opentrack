@@ -95,28 +95,6 @@ describe('CustomerioIntegration', () => {
     })
   })
 
-  describe('fromEnvironment', () => {
-    it('should create instance from environment variables', () => {
-      process.env.CUSTOMERIO_SITE_ID = 'env_site_id'
-      process.env.CUSTOMERIO_API_KEY = 'env_api_key'
-      process.env.CUSTOMERIO_REGION = 'EU'
-
-      const instance = CustomerioIntegration.fromEnvironment()
-      const config = instance.getConfig()
-
-      expect(config.siteId).toBe('env_site_id')
-      expect(config.apiKey).toBe('env_api_key')
-      expect(config.region).toBe('EU')
-    })
-
-    it('should throw error when environment variables are missing', () => {
-      delete process.env.CUSTOMERIO_SITE_ID
-      delete process.env.CUSTOMERIO_API_KEY
-
-      expect(() => CustomerioIntegration.fromEnvironment()).toThrow('Customer.io credentials not found')
-    })
-  })
-
   describe('identify', () => {
     it('should call client identify with transformed data', async () => {
       const call: IdentifyPayload = {
