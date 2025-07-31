@@ -30,5 +30,8 @@
   },
   "pnpm": {
     "overrides": {}
+  },
+  "dependencies": {
+    "eslint-define-config": "^2.1.0"
   }
 }
