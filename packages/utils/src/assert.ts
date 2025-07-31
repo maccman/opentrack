@@ -4,10 +4,7 @@
  * @param message - Optional error message to throw if condition is false
  * @throws Error if condition is false
  */
-export function assert(
-  condition: unknown,
-  message?: string,
-): asserts condition {
+export function assert(condition: unknown, message?: string): asserts condition {
   if (!condition) {
     throw new Error(message || 'Assertion failed')
   }
@@ -19,10 +16,7 @@ export function assert(
  * @param message - Optional error message to throw if value is null/undefined
  * @throws Error if value is null or undefined
  */
-export function assertDefined<T>(
-  value: T | null | undefined,
-  message?: string,
-): asserts value is T {
+export function assertDefined<T>(value: T | null | undefined, message?: string): asserts value is T {
   assert(value != null, message || 'Value is null or undefined')
 }
 
@@ -32,10 +26,7 @@ export function assertDefined<T>(
  * @param message - Optional error message to throw if value is not a string
  * @throws Error if value is not a string
  */
-export function assertString(
-  value: unknown,
-  message?: string,
-): asserts value is string {
+export function assertString(value: unknown, message?: string): asserts value is string {
   assert(typeof value === 'string', message || 'Value is not a string')
 }
 
@@ -45,10 +36,7 @@ export function assertString(
  * @param message - Optional error message to throw if value is not a number
  * @throws Error if value is not a number
  */
-export function assertNumber(
-  value: unknown,
-  message?: string,
-): asserts value is number {
+export function assertNumber(value: unknown, message?: string): asserts value is number {
   assert(typeof value === 'number', message || 'Value is not a number')
 }
 
@@ -58,10 +46,7 @@ export function assertNumber(
  * @param message - Optional error message to throw if value is not a boolean
  * @throws Error if value is not a boolean
  */
-export function assertBoolean(
-  value: unknown,
-  message?: string,
-): asserts value is boolean {
+export function assertBoolean(value: unknown, message?: string): asserts value is boolean {
   assert(typeof value === 'boolean', message || 'Value is not a boolean')
 }
 
@@ -71,14 +56,8 @@ export function assertBoolean(
  * @param message - Optional error message to throw if value is not an object
  * @throws Error if value is not an object
  */
-export function assertObject(
-  value: unknown,
-  message?: string,
-): asserts value is Record<string, unknown> {
-  assert(
-    typeof value === 'object' && value !== null,
-    message || 'Value is not an object',
-  )
+export function assertObject(value: unknown, message?: string): asserts value is Record<string, unknown> {
+  assert(typeof value === 'object' && value !== null, message || 'Value is not an object')
 }
 
 /**
@@ -87,10 +66,7 @@ export function assertObject(
  * @param message - Optional error message to throw if value is not an array
  * @throws Error if value is not an array
  */
-export function assertArray<T>(
-  value: unknown,
-  message?: string,
-): asserts value is T[] {
+export function assertArray<T>(value: unknown, message?: string): asserts value is T[] {
   assert(Array.isArray(value), message || 'Value is not an array')
 }
 
@@ -100,10 +76,7 @@ export function assertArray<T>(
  * @param message - Optional error message to throw if value is not a non-empty string
  * @throws Error if value is not a non-empty string
  */
-export function assertIsStringAndNotEmpty(
-  value: unknown,
-  message?: string,
-): asserts value is string {
+export function assertIsStringAndNotEmpty(value: unknown, message?: string): asserts value is string {
   assertString(value, message)
   assert(value.trim().length > 0, message || 'Value is an empty string')
 }

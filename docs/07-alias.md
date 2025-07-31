@@ -453,9 +453,7 @@ function checkAliasConflict(userId, previousId) {
   const currentUserId = analytics.user().id()
 
   if (currentUserId && currentUserId !== userId) {
-    console.warn(
-      `Identity conflict: current user ${currentUserId}, attempting to alias to ${userId}`,
-    )
+    console.warn(`Identity conflict: current user ${currentUserId}, attempting to alias to ${userId}`)
     return false
   }
 
@@ -649,9 +647,7 @@ const batchSize = 50
 for (let i = 0; i < aliasOperations.length; i += batchSize) {
   const batch = aliasOperations.slice(i, i + batchSize)
 
-  await Promise.all(
-    batch.map((op) => analytics.alias(op.userId, op.previousId)),
-  )
+  await Promise.all(batch.map((op) => analytics.alias(op.userId, op.previousId)))
 
   // Small delay between batches
   await new Promise((resolve) => setTimeout(resolve, 100))
@@ -675,10 +671,7 @@ async function handleRegistration(userData) {
   const user = await createUser(userData)
 
   // Don't block on tracking calls
-  Promise.all([
-    analytics.identify(user.id, user.traits),
-    asyncAlias(user.id, getAnonymousId()),
-  ]).catch((error) => {
+  Promise.all([analytics.identify(user.id, user.traits), asyncAlias(user.id, getAnonymousId())]).catch((error) => {
     console.error('Tracking failed:', error)
   })
 

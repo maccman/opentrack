@@ -1,10 +1,4 @@
-import type {
-  AliasPayload,
-  GroupPayload,
-  IdentifyPayload,
-  PagePayload,
-  TrackPayload,
-} from '@app/spec'
+import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 
 export interface Integration {
   name: string

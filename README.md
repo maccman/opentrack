@@ -24,6 +24,7 @@ This app provides a HTTP interface that is Segment-compliant. You can take the e
 
 ```env
 # Customer.io
+CUSTOMERIO_SITE_ID=your-customerio-site-id
 CUSTOMERIO_API_KEY=your-customerio-api-key
 
 # Google BigQuery
@@ -72,7 +73,7 @@ This simplifies integration and allows for immediate event tracking without the 
 ### Customer.io
 
 Events will be forwarded as [Customer.io Track API](https://customer.io/docs/api/#operation/track) calls.  
-Requires `CUSTOMERIO_API_KEY`.
+Requires `CUSTOMERIO_SITE_ID` and `CUSTOMERIO_API_KEY`.
 
 ### Google BigQuery
 

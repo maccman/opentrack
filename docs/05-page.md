@@ -540,12 +540,8 @@ window.addEventListener('load', () => {
 
   analytics.page('Home', {
     loadTime: navigation.loadEventEnd - navigation.loadEventStart,
-    domContentLoaded:
-      navigation.domContentLoadedEventEnd -
-      navigation.domContentLoadedEventStart,
-    firstContentfulPaint: performance.getEntriesByName(
-      'first-contentful-paint',
-    )[0]?.startTime,
+    domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+    firstContentfulPaint: performance.getEntriesByName('first-contentful-paint')[0]?.startTime,
   })
 })
 ```

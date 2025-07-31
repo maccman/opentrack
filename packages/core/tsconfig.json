@@ -5,13 +5,13 @@
   },
   "references": [
     {
-        "path": "../../integrations/bigquery/tsconfig.json"
+      "path": "../../integrations/bigquery/tsconfig.json"
     },
     {
-        "path": "../spec/tsconfig.json"
+      "path": "../spec/tsconfig.json"
     },
     {
-        "path": "../utils/tsconfig.json"
+      "path": "../utils/tsconfig.json"
     }
-]
+  ]
 }

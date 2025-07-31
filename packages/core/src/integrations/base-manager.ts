@@ -1,26 +1,12 @@
-import type {
-  AliasPayload,
-  GroupPayload,
-  IdentifyPayload,
-  Integration,
-  PagePayload,
-  TrackPayload,
-} from '@app/spec'
+import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
 
-type SegmentPayload =
-  | TrackPayload
-  | IdentifyPayload
-  | PagePayload
-  | GroupPayload
-  | AliasPayload
+type SegmentPayload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
 export class BaseIntegrationManager {
   private enabledIntegrations: Integration[] = []
 
   constructor(integrations: (new () => Integration)[]) {
-    this.enabledIntegrations = integrations
-      .map((I) => new I())
-      .filter((i) => i.isEnabled())
+    this.enabledIntegrations = integrations.map((I) => new I()).filter((i) => i.isEnabled())
   }
 
   public async process(payload: SegmentPayload) {
