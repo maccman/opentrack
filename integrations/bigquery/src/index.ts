@@ -9,6 +9,7 @@ export interface BigQueryIntegrationConfig {
   projectId: string
   datasetId: string
   autoTableManagement?: boolean
+  credentials?: object
 }
 
 export class BigQueryIntegration implements Integration {
@@ -23,9 +24,15 @@ export class BigQueryIntegration implements Integration {
       ...config,
     }
 
-    this.client = new BigQuery({
+    const clientConfig: { projectId: string; credentials?: object } = {
       projectId: this.config.projectId,
-    })
+    }
+
+    if (this.config.credentials) {
+      clientConfig.credentials = this.config.credentials
+    }
+
+    this.client = new BigQuery(clientConfig)
 
     if (this.config.autoTableManagement) {
       this.tableManager = new TableManager(this.client, this.config.projectId)

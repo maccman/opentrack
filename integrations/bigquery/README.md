@@ -20,11 +20,56 @@ To use the BigQuery integration, you need to configure the following environment
 - `BIGQUERY_PROJECT_ID`: Your Google Cloud Project ID.
 - `BIGQUERY_DATASET`: The BigQuery dataset where your data will be stored.
 
+### Authentication Variables
+
+Choose one of the following authentication methods:
+
+- **`GOOGLE_APPLICATION_CREDENTIALS`**: Path to your service account key JSON file (recommended for file-based auth).
+- **`GOOGLE_APPLICATION_CREDENTIALS_JSON`**: The complete service account key JSON as a string (recommended for containerized deployments).
+
+If neither is set, the client will use Google Cloud's default credentials (works automatically on GCP services like Cloud Run, GKE, etc.).
+
+#### Authentication Examples
+
+**Option 1: Using a service account key file**
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
+export BIGQUERY_PROJECT_ID="your-project-id"
+export BIGQUERY_DATASET="your_dataset"
+```
+
+**Option 2: Using JSON credentials as environment variable (recommended for containers)**
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type":"service_account","project_id":"your-project","private_key_id":"...","private_key":"...","client_email":"your-service@your-project.iam.gserviceaccount.com","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
+export BIGQUERY_PROJECT_ID="your-project-id"
+export BIGQUERY_DATASET="your_dataset"
+```
+
+**Option 3: Using default credentials (for GCP services)**
+
+```bash
+# No authentication variables needed - uses default service account
+export BIGQUERY_PROJECT_ID="your-project-id"
+export BIGQUERY_DATASET="your_dataset"
+```
+
 ### Optional Variables
 
 - `BIGQUERY_AUTO_TABLE_MANAGEMENT`: Controls the automatic schema and table handling.
   - **`true`** (default): The integration will automatically create and update tables and schemas. This is the recommended setting for ease of use.
   - **`false`**: Disables automatic management. You will be responsible for creating and maintaining the tables and schemas manually. If a table is not correctly configured, data insertion will fail.
+
+### Creating a Service Account
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to **IAM & Admin** > **Service Accounts**
+3. Click **Create Service Account**
+4. Give it a name (e.g., "opentrack-bigquery")
+5. Assign the required roles (see below)
+6. Click **Create Key** and download the JSON file
+7. Use the JSON file path or content as described in the authentication examples above
 
 ### Service Account Permissions
 

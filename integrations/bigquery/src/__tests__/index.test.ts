@@ -92,4 +92,34 @@ describe('BigQueryIntegration', () => {
       await expect(integration.track(payload)).rejects.toThrow('Schema mismatch')
     })
   })
+
+  describe('credentials handling', () => {
+    it('should initialize BigQuery client without credentials when none provided', () => {
+      new BigQueryIntegration(defaultConfig)
+
+      expect(BigQuery).toHaveBeenCalledWith({
+        projectId: 'test-project',
+      })
+    })
+
+    it('should use credentials when provided in config', () => {
+      const mockCredentials = {
+        type: 'service_account',
+        project_id: 'test-project',
+        private_key_id: 'key-id',
+        private_key: '-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----\n',
+        client_email: 'test@test-project.iam.gserviceaccount.com',
+        client_id: '123456789',
+        auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+        token_uri: 'https://oauth2.googleapis.com/token',
+      }
+
+      new BigQueryIntegration({ ...defaultConfig, credentials: mockCredentials })
+
+      expect(BigQuery).toHaveBeenCalledWith({
+        projectId: 'test-project',
+        credentials: mockCredentials,
+      })
+    })
+  })
 })

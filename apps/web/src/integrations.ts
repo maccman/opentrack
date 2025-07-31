@@ -18,6 +18,18 @@ function createIntegrations(): Integration[] {
       datasetId: bigQueryDataset,
       autoTableManagement: process.env.BIGQUERY_AUTO_TABLE_MANAGEMENT !== 'false', // Default to true
     }
+
+    // Handle authentication credentials
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      try {
+        bigQueryConfig.credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) as object
+      } catch (_error) {
+        throw new Error('Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON format')
+      }
+    }
+    // If GOOGLE_APPLICATION_CREDENTIALS_JSON is not set,
+    // the client will use GOOGLE_APPLICATION_CREDENTIALS file path or default credentials
+
     integrations.push(new BigQueryIntegration(bigQueryConfig))
   }
 
