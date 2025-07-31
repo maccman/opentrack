@@ -204,65 +204,62 @@ describe('Analytics Integration Tests', () => {
       },
     }
 
-    // Test track endpoint
-    const trackResponse = await $fetchRaw('/v1/track', {
-      method: 'POST',
-      body: {
-        ...basePayload,
-        event: 'Direct Test Event',
-        type: 'track',
+    const endpoints = [
+      {
+        path: '/v1/track',
+        body: {
+          ...basePayload,
+          event: 'Direct Test Event',
+          type: 'track',
+        },
       },
-    })
-    expect(trackResponse.status).toBe(200)
-    expect(trackResponse.data).toEqual({ success: true })
+      {
+        path: '/v1/identify',
+        body: {
+          ...basePayload,
+          traits: { email: 'direct@test.com' },
+          type: 'identify',
+        },
+      },
+      {
+        path: '/v1/page',
+        body: {
+          ...basePayload,
+          name: 'Direct Test Page',
+          type: 'page',
+        },
+      },
+      {
+        path: '/v1/group',
+        body: {
+          ...basePayload,
+          groupId: 'direct-test-group',
+          type: 'group',
+        },
+      },
+      {
+        path: '/v1/alias',
+        body: {
+          ...basePayload,
+          previousId: 'direct-previous-id',
+          type: 'alias',
+        },
+      },
+    ]
 
-    // Test identify endpoint
-    const identifyResponse = await $fetchRaw('/v1/identify', {
-      method: 'POST',
-      body: {
-        ...basePayload,
-        traits: { email: 'direct@test.com' },
-        type: 'identify',
-      },
-    })
-    expect(identifyResponse.status).toBe(200)
-    expect(identifyResponse.data).toEqual({ success: true })
+    const responses = await Promise.all(
+      endpoints.map((endpoint) =>
+        $fetchRaw(endpoint.path, {
+          method: 'POST',
+          body: endpoint.body,
+        })
+      )
+    )
 
-    // Test page endpoint
-    const pageResponse = await $fetchRaw('/v1/page', {
-      method: 'POST',
-      body: {
-        ...basePayload,
-        name: 'Direct Test Page',
-        type: 'page',
-      },
+    responses.forEach((response) => {
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
     })
-    expect(pageResponse.status).toBe(200)
-    expect(pageResponse.data).toEqual({ success: true })
-
-    // Test group endpoint
-    const groupResponse = await $fetchRaw('/v1/group', {
-      method: 'POST',
-      body: {
-        ...basePayload,
-        groupId: 'direct-test-group',
-        type: 'group',
-      },
-    })
-    expect(groupResponse.status).toBe(200)
-    expect(groupResponse.data).toEqual({ success: true })
-
-    // Test alias endpoint
-    const aliasResponse = await $fetchRaw('/v1/alias', {
-      method: 'POST',
-      body: {
-        ...basePayload,
-        previousId: 'direct-previous-id',
-        type: 'alias',
-      },
-    })
-    expect(aliasResponse.status).toBe(200)
-    expect(aliasResponse.data).toEqual({ success: true })
   })
 
   it('should handle CORS requests successfully', async () => {
