@@ -102,21 +102,11 @@ Follow these steps to set up and run your own instance of OpenTrack.
 
 ### Installation
 
-1.  **Clone the repository**:
-
-    ```bash
-    git clone https://github.com/riven-io/opentrack.git
-    cd opentrack
-    ```
-
-2.  **Install dependencies**:
-    ```bash
-    pnpm install
-    ```
+1.  Clone the repository, and then import into Vercel.
 
 ### Configuration
 
-1.  **Create a `.env` file** in the root of the project.
+1.  For development, **Create a `.env` file** in `./apps/web/.env`. For production, you can use the Vercel environment variables.
 2.  **Add the following environment variables** for the integrations you want to use:
 
     ```env
@@ -132,7 +122,7 @@ Follow these steps to set up and run your own instance of OpenTrack.
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
     ```
 
-    You will also need to set up Google Cloud authentication. Refer to the [Google Cloud documentation](https://cloud.google.com/docs/authentication/production) for details.
+    You will also need to set up Google Cloud authentication. Refer to the instructions in the [Google BigQuery integration README](./integrations/bigquery/README.md).
 
 ## Usage
 

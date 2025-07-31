@@ -421,8 +421,9 @@ describe('IntegrationManager', () => {
           {
             integration: 'MockFailingIntegration',
             duration: expect.any(Number),
-            error: 'Track operation failed',
-            stack: expect.any(String),
+            error: expect.objectContaining({
+              message: 'Track operation failed',
+            }),
           },
           'Integration failed'
         )

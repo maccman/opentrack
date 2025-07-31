@@ -5,7 +5,7 @@ export interface CustomerioError extends Error {
 }
 
 function isCustomerioError(error: unknown): error is CustomerioError {
-  return typeof error === 'object' && error !== null && 'statusCode' in error
+  return typeof error === 'object' && error !== null && ('statusCode' in error || 'code' in error)
 }
 
 export class CustomerioErrorHandler {
