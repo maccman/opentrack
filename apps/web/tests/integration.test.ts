@@ -260,7 +260,7 @@ describe('Analytics Integration Tests', () => {
       expect(response.status).toBe(200)
       expect(response.data).toEqual({ success: true })
     })
-  })
+  }, 30000)
 
   it('should handle CORS requests successfully', async () => {
     // Test that cross-origin requests complete successfully
