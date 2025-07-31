@@ -167,19 +167,19 @@ describe('Integration Interface', () => {
     const errorIntegration: Integration = {
       name: 'Error Integration',
       track: (_payload: TrackPayload) => {
-        throw new Error('Track failed')
+        return Promise.reject(new Error('Track failed'))
       },
       identify: (_payload: IdentifyPayload) => {
-        throw new Error('Identify failed')
+        return Promise.reject(new Error('Identify failed'))
       },
       page: (_payload: PagePayload) => {
-        throw new Error('Page failed')
+        return Promise.reject(new Error('Page failed'))
       },
       group: (_payload: GroupPayload) => {
-        throw new Error('Group failed')
+        return Promise.reject(new Error('Group failed'))
       },
       alias: (_payload: AliasPayload) => {
-        throw new Error('Alias failed')
+        return Promise.reject(new Error('Alias failed'))
       },
     }
 
