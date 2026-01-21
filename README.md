@@ -231,7 +231,7 @@ analytics.load('your-write-key', {
 export default analytics
 
 // components/Analytics.tsx
-'use client'
+;('use client')
 import { useEffect } from 'react'
 import analytics from '../lib/analytics'
 

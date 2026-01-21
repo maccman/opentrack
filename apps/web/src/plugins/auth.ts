@@ -63,7 +63,7 @@ export default defineNitroPlugin((nitroApp) => {
     if (!validateWriteKey(writeKey)) {
       setResponseStatus(event, 401)
       setResponseHeader(event, 'Content-Type', 'application/json')
-      return send(event, JSON.stringify(createUnauthorizedResponse()))
+      return await send(event, JSON.stringify(createUnauthorizedResponse()))
     }
   })
 })
