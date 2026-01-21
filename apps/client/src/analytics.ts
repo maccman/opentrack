@@ -32,7 +32,6 @@ class Analytics {
   private isReady = false
   private queue: EventPayload[] = []
   private flushTimer: number | null = null
-  private initialPageviewFired = false
 
   constructor(options: AnalyticsOptions = {}) {
     this.config = createConfig(options)
@@ -88,12 +87,6 @@ class Analytics {
       retries: this.config.retries,
       retryDelay: this.config.retryDelay,
     })
-
-    // Auto-track initial page view if enabled (default: true)
-    if (this.config.initialPageview && !this.initialPageviewFired) {
-      this.initialPageviewFired = true
-      this.page()
-    }
   }
 
   ready(callback: () => void): void {

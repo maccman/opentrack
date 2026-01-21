@@ -10,6 +10,7 @@ A Segment-compatible client-side analytics library for OpenTrack. This library p
 - **TypeScript Support**: Full TypeScript definitions included
 - **Browser Beacon API**: Uses `navigator.sendBeacon()` for reliable event delivery
 - **Automatic Identity Management**: Persists user identity across sessions using localStorage
+- **Manual Page Tracking**: Call `analytics.page()` explicitly to track page views
 - **Event Queuing**: Automatic batching and flushing of events
 - **Modular Architecture**: Clean separation of concerns with utility modules
 - **Configurable Storage**: Customizable localStorage keys and prefixes
