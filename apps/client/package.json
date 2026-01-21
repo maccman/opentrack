@@ -1,7 +1,7 @@
 {
   "name": "opentrack-analytics",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A Segment-compatible client-side analytics library for OpenTrack. Drop-in replacement for Analytics.js with TypeScript support.",
   "author": "OpenTrack Team",
   "license": "MIT",
