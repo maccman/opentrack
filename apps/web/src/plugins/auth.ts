@@ -64,6 +64,7 @@ export default defineNitroPlugin((nitroApp) => {
       setResponseStatus(event, 401)
       event.node.res.setHeader('Content-Type', 'application/json')
       event.node.res.end(JSON.stringify(createUnauthorizedResponse()))
+      return
     }
   })
 })
