@@ -16,6 +16,7 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   timeout: 5000, // 5 second timeout
   retries: 2, // 2 retry attempts
   retryDelay: 1000, // 1 second base delay for retries
+  initialPageview: true, // Auto-track initial page view
 }
 
 /**

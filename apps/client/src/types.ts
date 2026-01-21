@@ -14,6 +14,7 @@ export interface AnalyticsOptions {
   timeout?: number // Request timeout in milliseconds
   retries?: number // Number of retry attempts
   retryDelay?: number // Base delay between retries in milliseconds
+  initialPageview?: boolean // Whether to auto-track initial page view (default: true)
 }
 
 export interface BaseEventPayload {

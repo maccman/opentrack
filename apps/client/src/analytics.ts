@@ -32,6 +32,7 @@ class Analytics {
   private isReady = false
   private queue: EventPayload[] = []
   private flushTimer: number | null = null
+  private initialPageviewFired = false
 
   constructor(options: AnalyticsOptions = {}) {
     this.config = createConfig(options)
@@ -87,6 +88,12 @@ class Analytics {
       retries: this.config.retries,
       retryDelay: this.config.retryDelay,
     })
+
+    // Auto-track initial page view if enabled (default: true)
+    if (this.config.initialPageview && !this.initialPageviewFired) {
+      this.initialPageviewFired = true
+      this.page()
+    }
   }
 
   ready(callback: () => void): void {
@@ -280,12 +287,8 @@ class Analytics {
 // Create global analytics instance
 const analytics = new Analytics()
 
-// Auto-track initial page view and setup global usage (browser only)
+// Setup global usage (browser only)
 if (typeof window !== 'undefined') {
-  analytics.ready(() => {
-    analytics.page()
-  })
-
   // Flush on page unload
   window.addEventListener('beforeunload', () => {
     analytics.flush()
