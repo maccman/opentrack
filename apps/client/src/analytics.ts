@@ -280,12 +280,8 @@ class Analytics {
 // Create global analytics instance
 const analytics = new Analytics()
 
-// Auto-track initial page view and setup global usage (browser only)
+// Setup global usage (browser only)
 if (typeof window !== 'undefined') {
-  analytics.ready(() => {
-    analytics.page()
-  })
-
   // Flush on page unload
   window.addEventListener('beforeunload', () => {
     analytics.flush()
