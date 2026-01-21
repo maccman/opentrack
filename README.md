@@ -10,24 +10,25 @@
 
 2. Configure the integrations you want to use through ENV variables on Vercel (e.g. `CUSTOMERIO_SITE_ID`).
 
-3. Use the OpenTrack API to send events to your integrations.
+3. Install the OpenTrack client and start tracking events:
+
+```bash
+npm install opentrack-analytics
+```
 
 ```javascript
-import Analytics from 'analytics-node'
+import analytics from 'opentrack-analytics'
 
-const analytics = new Analytics('', {
+// Initialize with your OpenTrack instance
+analytics.load('your-write-key', {
   host: 'https://your-opentrack-deployment.vercel.app',
 })
 
 // Track an event
-analytics.track({
-  userId: 'user-123',
-  event: 'Product Purchased',
-  properties: {
-    productId: 'prod-456',
-    price: 99.99,
-    currency: 'USD',
-  },
+analytics.track('Product Purchased', {
+  productId: 'prod-456',
+  price: 99.99,
+  currency: 'USD',
 })
 ```
 
@@ -46,7 +47,8 @@ analytics.track({
   - [Installation](#installation)
   - [Configuration](#configuration)
 - [Usage](#usage)
-  - [Using `analytics-node`](#using-analytics-node)
+  - [Using OpenTrack Client (Recommended)](#using-opentrack-client-recommended)
+  - [Using `analytics-node` (Segment SDK)](#using-analytics-node-segment-sdk)
   - [Direct API Calls](#direct-api-calls)
 - [Development](#development)
 - [Contributing](#contributing)
@@ -162,11 +164,102 @@ Follow these steps to set up and run your own instance of OpenTrack.
 
 ## Usage
 
-You can send data to your OpenTrack instance using any Segment-compatible library or by making direct HTTP requests.
+You can send data to your OpenTrack instance using the OpenTrack client library, any Segment-compatible library, or by making direct HTTP requests.
 
-### Using `analytics-node`
+### Using OpenTrack Client (Recommended)
 
-The official `analytics-node` package can be used to send events to your OpenTrack instance by pointing it to your deployment's URL.
+The OpenTrack client is a lightweight (~6KB), Segment-compatible analytics library designed specifically for OpenTrack. It works in browsers, Node.js, and SSR environments (Next.js, Astro, SvelteKit, etc.).
+
+#### Installation
+
+```bash
+npm install opentrack-analytics
+# or
+pnpm add opentrack-analytics
+```
+
+#### Basic Usage
+
+```javascript
+import analytics from 'opentrack-analytics'
+
+// Initialize with your OpenTrack instance
+analytics.load('your-write-key', {
+  host: 'https://your-opentrack-deployment.vercel.app',
+  debug: process.env.NODE_ENV === 'development',
+})
+
+// Identify a user
+analytics.identify('user-123', {
+  email: 'test@example.com',
+  name: 'Test User',
+  plan: 'premium',
+})
+
+// Track an event
+analytics.track('Product Purchased', {
+  productId: 'prod-456',
+  price: 99.99,
+  currency: 'USD',
+})
+
+// Track a page view
+analytics.page()
+
+// Or with custom properties
+analytics.page('Marketing', 'Pricing Page', {
+  campaign: 'spring-sale',
+})
+
+// Group users by organization
+analytics.group('company-456', {
+  name: 'Acme Corp',
+  industry: 'Technology',
+})
+```
+
+#### Next.js Example
+
+```typescript
+// lib/analytics.ts
+import analytics from 'opentrack-analytics'
+
+analytics.load('your-write-key', {
+  host: 'https://your-opentrack-deployment.vercel.app',
+})
+
+export default analytics
+
+// components/Analytics.tsx
+'use client'
+import { useEffect } from 'react'
+import analytics from '../lib/analytics'
+
+export default function Analytics() {
+  useEffect(() => {
+    analytics.page()
+  }, [])
+
+  return null
+}
+```
+
+#### Direct Browser Usage (Script Tag)
+
+```html
+<script src="https://unpkg.com/opentrack-analytics@1.0.0/dist/analytics.iife.js"></script>
+<script>
+  analytics.load('your-write-key', {
+    host: 'https://your-opentrack-deployment.vercel.app',
+  })
+</script>
+```
+
+For more examples including Astro, SvelteKit, Vue/Nuxt, and advanced configuration options, see the [OpenTrack Client documentation](./apps/client/README.md).
+
+### Using `analytics-node` (Segment SDK)
+
+If you prefer to use Segment's official SDK, the `analytics-node` package can be used by pointing it to your OpenTrack deployment URL.
 
 #### Installation
 
