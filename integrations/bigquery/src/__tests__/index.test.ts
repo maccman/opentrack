@@ -1,5 +1,4 @@
 import type { TrackPayload } from '@app/spec'
-import { BigQuery } from '@google-cloud/bigquery'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BigQueryIntegration } from '../index'
@@ -12,12 +11,16 @@ vi.mock('../utils/table-manager')
 const mockInsert = vi.fn()
 const mockTable = vi.fn(() => ({ insert: mockInsert }))
 const mockDataset = vi.fn(() => ({ table: mockTable }))
+const mockBigQueryConstructor = vi.fn()
 
 vi.mock('@google-cloud/bigquery', () => {
   return {
-    BigQuery: vi.fn(() => ({
-      dataset: mockDataset,
-    })),
+    BigQuery: class MockBigQuery {
+      dataset = mockDataset
+      constructor(config: unknown) {
+        mockBigQueryConstructor(config)
+      }
+    },
   }
 })
 
@@ -76,7 +79,7 @@ describe('BigQueryIntegration', () => {
       expect(MockedTableManager.mock.instances).toHaveLength(0)
 
       // Ensure direct client was used
-      expect(BigQuery).toHaveBeenCalledTimes(1)
+      expect(mockBigQueryConstructor).toHaveBeenCalledTimes(1)
       expect(mockDataset).toHaveBeenCalledWith('test_dataset')
       expect(mockTable).toHaveBeenCalledWith('tracks')
       expect(mockTable).toHaveBeenCalledWith('product_purchased')
@@ -97,7 +100,7 @@ describe('BigQueryIntegration', () => {
     it('should initialize BigQuery client without credentials when none provided', () => {
       new BigQueryIntegration(defaultConfig)
 
-      expect(BigQuery).toHaveBeenCalledWith({
+      expect(mockBigQueryConstructor).toHaveBeenCalledWith({
         projectId: 'test-project',
       })
     })
@@ -116,7 +119,7 @@ describe('BigQueryIntegration', () => {
 
       new BigQueryIntegration({ ...defaultConfig, credentials: mockCredentials })
 
-      expect(BigQuery).toHaveBeenCalledWith({
+      expect(mockBigQueryConstructor).toHaveBeenCalledWith({
         projectId: 'test-project',
         credentials: mockCredentials,
       })

@@ -16,11 +16,11 @@
     "@app/spec": "workspace:*",
     "@google-cloud/bigquery": "^8.1.1",
     "@types/lodash-es": "^4.17.12",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.17.22"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "@types/node": "^25.0.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }

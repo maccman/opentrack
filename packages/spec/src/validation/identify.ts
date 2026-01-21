@@ -5,7 +5,7 @@ import { segmentEventBaseSchema } from './track'
 export const identifyEventSchema = segmentEventBaseSchema
   .extend({
     type: z.literal('identify'),
-    traits: z.record(z.any()).optional(),
+    traits: z.record(z.string(), z.any()).optional(),
     userId: z.string().optional(),
     anonymousId: z.string().optional(),
   })

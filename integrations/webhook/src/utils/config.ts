@@ -24,7 +24,7 @@ export const webhookConfigSchema = z.object({
   /**
    * Custom headers to include in requests
    */
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 
   /**
    * Request timeout in milliseconds

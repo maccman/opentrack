@@ -4,14 +4,9 @@ export default defineConfig({
   nitro: {
     global: true,
   },
+  // @ts-expect-error - nitro-test-utils types don't include test property but it works
   test: {
     environment: 'node',
-    globals: true,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'dist/', '*.config.*'],
-    },
-    testTimeout: 30000, // Allow more time for server startup
+    testTimeout: 30000,
   },
 })

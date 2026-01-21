@@ -68,7 +68,7 @@ export const enhancedSegmentEventBaseSchema = z.object({
   messageId: z.string().max(255, 'messageId cannot exceed 255 characters').optional(),
   timestamp: z.string().datetime('timestamp must be a valid ISO 8601 datetime string').optional(),
   context: z.any().optional(), // Context can contain any structure
-  integrations: z.record(z.union([z.boolean(), z.record(z.any())])).optional(),
+  integrations: z.record(z.string(), z.union([z.boolean(), z.record(z.string(), z.any())])).optional(),
 })
 
 // Enhanced track event schema with full constraints
@@ -112,7 +112,7 @@ export const enhancedGroupEventSchema = enhancedSegmentEventBaseSchema
   .extend({
     type: z.literal('group'),
     groupId: z
-      .string({ required_error: 'groupId is required' })
+      .string({ error: 'groupId is required' })
       .min(1, 'groupId is required')
       .max(255, 'groupId cannot exceed 255 characters'),
     traits: enhancedTraitsSchema,
@@ -126,11 +126,11 @@ export const enhancedAliasEventSchema = enhancedSegmentEventBaseSchema
   .extend({
     type: z.literal('alias'),
     userId: z
-      .string({ required_error: 'userId is required' })
+      .string({ error: 'userId is required' })
       .min(1, 'userId is required')
       .max(255, 'userId cannot exceed 255 characters'),
     previousId: z
-      .string({ required_error: 'previousId is required' })
+      .string({ error: 'previousId is required' })
       .min(1, 'previousId is required')
       .max(255, 'previousId cannot exceed 255 characters'),
   })

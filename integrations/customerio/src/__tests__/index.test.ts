@@ -4,14 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CustomerioIntegration } from '../index'
 
 // Mock the customerio-node module
+const mockIdentify = vi.fn().mockResolvedValue({})
+const mockTrack = vi.fn().mockResolvedValue({})
+const mockTrackAnonymous = vi.fn().mockResolvedValue({})
+const mockTrackPageView = vi.fn().mockResolvedValue({})
+const mockMergeCustomers = vi.fn().mockResolvedValue({})
+
 vi.mock('customerio-node', () => ({
-  TrackClient: vi.fn().mockImplementation(() => ({
-    identify: vi.fn().mockResolvedValue({}),
-    track: vi.fn().mockResolvedValue({}),
-    trackAnonymous: vi.fn().mockResolvedValue({}),
-    trackPageView: vi.fn().mockResolvedValue({}),
-    mergeCustomers: vi.fn().mockResolvedValue({}),
-  })),
+  TrackClient: class MockTrackClient {
+    identify = mockIdentify
+    track = mockTrack
+    trackAnonymous = mockTrackAnonymous
+    trackPageView = mockTrackPageView
+    mergeCustomers = mockMergeCustomers
+  },
   RegionUS: 'US',
   RegionEU: 'EU',
   IdentifierType: {
@@ -23,13 +29,6 @@ vi.mock('customerio-node', () => ({
 
 describe('CustomerioIntegration', () => {
   let integration: CustomerioIntegration
-  let mockClient: {
-    identify: ReturnType<typeof vi.fn>
-    track: ReturnType<typeof vi.fn>
-    trackAnonymous: ReturnType<typeof vi.fn>
-    trackPageView: ReturnType<typeof vi.fn>
-    mergeCustomers: ReturnType<typeof vi.fn>
-  }
   let originalEnv: Record<string, string | undefined>
 
   beforeEach(() => {
@@ -45,19 +44,6 @@ describe('CustomerioIntegration', () => {
       apiKey: 'test_api_key',
       region: 'US',
     })
-
-    // Get the mocked client instance
-    mockClient = (
-      integration as unknown as {
-        client: {
-          identify: ReturnType<typeof vi.fn>
-          track: ReturnType<typeof vi.fn>
-          trackAnonymous: ReturnType<typeof vi.fn>
-          trackPageView: ReturnType<typeof vi.fn>
-          mergeCustomers: ReturnType<typeof vi.fn>
-        }
-      }
-    ).client
   })
 
   afterEach(() => {
@@ -108,7 +94,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.identify(call)
 
-      expect(mockClient.identify).toHaveBeenCalledWith('user123', {
+      expect(mockIdentify).toHaveBeenCalledWith('user123', {
         email: 'test@example.com',
         name: 'Test User',
       })
@@ -136,7 +122,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.identify(call)
 
-      expect(mockClient.identify).toHaveBeenCalledWith('user123', {
+      expect(mockIdentify).toHaveBeenCalledWith('user123', {
         email: 'test@example.com',
         created_at: 1672531200,
       })
@@ -157,7 +143,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.track(call)
 
-      expect(mockClient.track).toHaveBeenCalledWith('user123', {
+      expect(mockTrack).toHaveBeenCalledWith('user123', {
         name: 'Purchase Completed',
         data: {
           revenue: 99.99,
@@ -178,7 +164,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.track(call)
 
-      expect(mockClient.trackAnonymous).toHaveBeenCalledWith('anon123', {
+      expect(mockTrackAnonymous).toHaveBeenCalledWith('anon123', {
         name: 'Page Viewed',
         data: {
           url: '/home',
@@ -197,7 +183,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.track(call)
 
-      expect(mockClient.trackAnonymous).toHaveBeenCalledWith(expect.stringMatching(/^anon_/), {
+      expect(mockTrackAnonymous).toHaveBeenCalledWith(expect.stringMatching(/^anon_/), {
         name: 'Page Viewed',
         data: {
           url: '/home',
@@ -219,7 +205,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.page(payload)
 
-      expect(mockClient.track).toHaveBeenCalledWith('user123', {
+      expect(mockTrack).toHaveBeenCalledWith('user123', {
         name: 'page_viewed',
         data: {
           url: '/home',
@@ -240,7 +226,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.page(payload)
 
-      expect(mockClient.trackPageView).toHaveBeenCalledWith('user123', '/home')
+      expect(mockTrackPageView).toHaveBeenCalledWith('user123', '/home')
     })
 
     it('should handle anonymous page views', async () => {
@@ -252,7 +238,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.page(payload)
 
-      expect(mockClient.trackAnonymous).toHaveBeenCalledWith('anon123', {
+      expect(mockTrackAnonymous).toHaveBeenCalledWith('anon123', {
         name: 'page_viewed',
         data: {
           page_title: 'Home',
@@ -277,7 +263,7 @@ describe('CustomerioIntegration', () => {
       await integration.group(call)
 
       // Should update user with group attributes
-      expect(mockClient.identify).toHaveBeenCalledWith('user123', {
+      expect(mockIdentify).toHaveBeenCalledWith('user123', {
         group_company456: true,
         group_company456_joined_at: expect.any(Number) as number,
         group_name: 'Acme Corp',
@@ -285,7 +271,7 @@ describe('CustomerioIntegration', () => {
       })
 
       // Should track group joined event
-      expect(mockClient.track).toHaveBeenCalledWith('user123', {
+      expect(mockTrack).toHaveBeenCalledWith('user123', {
         name: 'Group Joined',
         data: {
           group_id: 'company456',
@@ -306,7 +292,7 @@ describe('CustomerioIntegration', () => {
 
       await integration.alias(call)
 
-      expect(mockClient.mergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
+      expect(mockMergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
     })
   })
 
@@ -318,35 +304,13 @@ describe('CustomerioIntegration', () => {
 
   describe('setRegion', () => {
     it('should update region and recreate client', () => {
-      const originalClient = (
-        integration as unknown as {
-          client: {
-            identify: ReturnType<typeof vi.fn>
-            track: ReturnType<typeof vi.fn>
-            trackAnonymous: ReturnType<typeof vi.fn>
-            trackPageView: ReturnType<typeof vi.fn>
-            mergeCustomers: ReturnType<typeof vi.fn>
-          }
-        }
-      ).client
+      const originalClient = (integration as unknown as { client: unknown }).client
 
       integration.setRegion('EU')
 
       expect(integration.getConfig().region).toBe('EU')
       // Client should be recreated (different instance)
-      expect(
-        (
-          integration as unknown as {
-            client: {
-              identify: ReturnType<typeof vi.fn>
-              track: ReturnType<typeof vi.fn>
-              trackAnonymous: ReturnType<typeof vi.fn>
-              trackPageView: ReturnType<typeof vi.fn>
-              mergeCustomers: ReturnType<typeof vi.fn>
-            }
-          }
-        ).client
-      ).not.toBe(originalClient)
+      expect((integration as unknown as { client: unknown }).client).not.toBe(originalClient)
     })
   })
 
@@ -354,11 +318,11 @@ describe('CustomerioIntegration', () => {
     it('should return true for successful connection', async () => {
       const result = await integration.testConnection()
       expect(result).toBe(true)
-      expect(mockClient.identify).toHaveBeenCalled()
+      expect(mockIdentify).toHaveBeenCalled()
     })
 
     it('should return false for authentication errors', async () => {
-      mockClient.identify.mockRejectedValueOnce({
+      mockIdentify.mockRejectedValueOnce({
         statusCode: 401,
         message: 'Unauthorized',
       })
@@ -368,7 +332,7 @@ describe('CustomerioIntegration', () => {
     })
 
     it('should return true for other errors (connection is working)', async () => {
-      mockClient.identify.mockRejectedValueOnce({
+      mockIdentify.mockRejectedValueOnce({
         statusCode: 400,
         message: 'Bad Request',
       })
@@ -380,7 +344,7 @@ describe('CustomerioIntegration', () => {
 
   describe('error handling and retries', () => {
     it('should retry on retryable errors', async () => {
-      mockClient.identify
+      mockIdentify
         .mockRejectedValueOnce({ statusCode: 500 })
         .mockRejectedValueOnce({ statusCode: 500 })
         .mockResolvedValueOnce({})
@@ -392,11 +356,11 @@ describe('CustomerioIntegration', () => {
       }
 
       await integration.identify(call)
-      expect(mockClient.identify).toHaveBeenCalledTimes(3)
+      expect(mockIdentify).toHaveBeenCalledTimes(3)
     })
 
     it('should not retry on non-retryable errors', async () => {
-      mockClient.identify.mockRejectedValueOnce({ statusCode: 400 })
+      mockIdentify.mockRejectedValueOnce({ statusCode: 400 })
 
       const call: IdentifyPayload = {
         type: 'identify',
@@ -405,11 +369,11 @@ describe('CustomerioIntegration', () => {
       }
 
       await expect(integration.identify(call)).rejects.toThrow()
-      expect(mockClient.identify).toHaveBeenCalledTimes(1)
+      expect(mockIdentify).toHaveBeenCalledTimes(1)
     })
 
     it('should throw after maximum retry attempts', async () => {
-      mockClient.identify.mockRejectedValue({ statusCode: 500 })
+      mockIdentify.mockRejectedValue({ statusCode: 500 })
 
       const call: IdentifyPayload = {
         type: 'identify',
@@ -418,7 +382,7 @@ describe('CustomerioIntegration', () => {
       }
 
       await expect(integration.identify(call)).rejects.toThrow()
-      expect(mockClient.identify).toHaveBeenCalledTimes(3) // Default retry attempts
+      expect(mockIdentify).toHaveBeenCalledTimes(3) // Default retry attempts
     })
   })
 })

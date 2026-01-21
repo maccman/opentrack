@@ -3,6 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "description": "JavaScript utilities",
+  "license": "MIT",
   "main": "index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -12,8 +13,8 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "@types/node": "^25.0.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }

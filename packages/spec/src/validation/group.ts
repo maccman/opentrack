@@ -6,7 +6,7 @@ export const groupEventSchema = segmentEventBaseSchema
   .extend({
     type: z.literal('group'),
     groupId: z.string(),
-    traits: z.record(z.any()).optional(),
+    traits: z.record(z.string(), z.any()).optional(),
     userId: z.string().optional(),
     anonymousId: z.string().optional(),
   })

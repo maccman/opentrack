@@ -11,7 +11,7 @@ export const trackEventSchema = segmentEventBaseSchema
   .extend({
     type: z.literal('track'),
     event: z.string(),
-    properties: z.record(z.any()).optional(),
+    properties: z.record(z.string(), z.any()).optional(),
     userId: z.string().optional(),
     anonymousId: z.string().optional(),
   })
