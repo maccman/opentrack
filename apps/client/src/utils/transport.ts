@@ -6,6 +6,7 @@ export interface TransportConfig {
   host: string
   debug: boolean
   useBeacon: boolean
+  writeKey?: string
   timeout?: number
   retries?: number
   retryDelay?: number
@@ -28,7 +29,7 @@ const TRANSPORT_CONSTANTS = {
 } as const
 
 export class AnalyticsTransport {
-  private config: Required<TransportConfig>
+  private config: Required<Omit<TransportConfig, 'writeKey'>> & { writeKey?: string }
 
   constructor(config: TransportConfig) {
     this.config = {
@@ -37,6 +38,19 @@ export class AnalyticsTransport {
       retryDelay: TRANSPORT_CONSTANTS.DEFAULT_RETRY_DELAY,
       ...config,
     }
+  }
+
+  /**
+   * Generate Basic auth header value from writeKey
+   * Format: "Basic base64(writeKey:)"
+   */
+  private getAuthHeader(): string | null {
+    if (!this.config.writeKey) {
+      return null
+    }
+    // In browser, use btoa for base64 encoding
+    const encoded = typeof btoa !== 'undefined' ? btoa(`${this.config.writeKey}:`) : null
+    return encoded ? `Basic ${encoded}` : null
   }
 
   /**
@@ -51,7 +65,9 @@ export class AnalyticsTransport {
     }
 
     const endpoint = this.buildEndpoint(event.type)
-    const data = JSON.stringify(event)
+    // Add writeKey to payload if configured (needed for beacon which can't send headers)
+    const payload = this.config.writeKey ? { ...event, writeKey: this.config.writeKey } : event
+    const data = JSON.stringify(payload)
 
     this.debugLog('Sending event:', { endpoint, data: event })
 
@@ -128,6 +144,7 @@ export class AnalyticsTransport {
 
   /**
    * Send via fetch with timeout and proper error handling
+   * Includes Authorization header when writeKey is configured
    */
   private async sendViaFetch(endpoint: string, data: string): Promise<void> {
     if (typeof fetch === 'undefined') {
@@ -137,12 +154,19 @@ export class AnalyticsTransport {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout)
 
+    // Build headers with optional Authorization
+    const headers: Record<string, string> = {
+      'Content-Type': TRANSPORT_CONSTANTS.CONTENT_TYPE,
+    }
+    const authHeader = this.getAuthHeader()
+    if (authHeader) {
+      headers['Authorization'] = authHeader
+    }
+
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': TRANSPORT_CONSTANTS.CONTENT_TYPE,
-        },
+        headers,
         body: data,
         keepalive: true,
         credentials: 'omit', // Don't send credentials for analytics requests
