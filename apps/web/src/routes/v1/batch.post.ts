@@ -107,7 +107,7 @@ interface BatchPayload {
 export default defineEventHandler(async (event) => {
   const body = await readBody<BatchPayload>(event)
 
-  if (!body.batch || !Array.isArray(body.batch)) {
+  if (!body?.batch || !Array.isArray(body.batch)) {
     event.node.res.statusCode = 400
     return { error: 'Invalid payload: batch array is required' }
   }

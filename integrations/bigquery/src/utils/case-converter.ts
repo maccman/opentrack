@@ -1,14 +1,14 @@
 /**
  * Utility functions for converting strings between different cases
  */
-import { snakeCase } from 'lodash-es'
+
 
 /**
  * Converts a string from camelCase or PascalCase to snake_case
  * @param str - The string to convert
  * @returns The snake_case version of the string
  */
-export { snakeCase as convertToSnakeCase }
+
 
 /**
  * Converts an event name to a valid BigQuery table name
@@ -21,3 +21,5 @@ export function eventNameToTableName(eventName: string): string {
     .replace(/[^\da-z]+/g, '_') // Replace any non-alphanumeric characters with single underscore
     .replace(/^_+|_+$/g, '') // Remove leading and trailing underscores
 }
+
+export {snakeCase as convertToSnakeCase} from 'lodash-es'
