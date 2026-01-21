@@ -1,5 +1,8 @@
 import { defineConfig } from 'nitro-test-utils/config'
 
+// Set WRITE_KEY before Nitro server builds
+process.env.WRITE_KEY = 'test-write-key-for-integration'
+
 export default defineConfig({
   nitro: {
     global: true,
@@ -8,5 +11,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     testTimeout: 30000,
+    setupFiles: ['./tests/setup.ts'],
   },
 })
