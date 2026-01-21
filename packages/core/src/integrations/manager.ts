@@ -32,12 +32,15 @@ export class IntegrationManager {
   public async process(payload: IntegrationPayload): Promise<IntegrationResult[]> {
     const startTime = Date.now()
 
+    // Strip writeKey before processing - it's for authentication only, not for integrations
+    const { writeKey: _, ...cleanPayload } = payload as IntegrationPayload & { writeKey?: string }
+
     this.logger?.info(
       {
-        type: payload.type,
-        userId: 'userId' in payload ? payload.userId : undefined,
-        anonymousId: 'anonymousId' in payload ? payload.anonymousId : undefined,
-        timestamp: payload.timestamp,
+        type: cleanPayload.type,
+        userId: 'userId' in cleanPayload ? cleanPayload.userId : undefined,
+        anonymousId: 'anonymousId' in cleanPayload ? cleanPayload.anonymousId : undefined,
+        timestamp: cleanPayload.timestamp,
       },
       'Processing event'
     )
@@ -49,21 +52,21 @@ export class IntegrationManager {
       this.logger?.info({ integration: integrationName }, 'Starting integration')
 
       try {
-        switch (payload.type) {
+        switch (cleanPayload.type) {
           case 'track':
-            await integration.track(payload)
+            await integration.track(cleanPayload)
             break
           case 'identify':
-            await integration.identify(payload)
+            await integration.identify(cleanPayload)
             break
           case 'page':
-            await integration.page(payload)
+            await integration.page(cleanPayload)
             break
           case 'group':
-            await integration.group(payload)
+            await integration.group(cleanPayload)
             break
           case 'alias':
-            await integration.alias(payload)
+            await integration.alias(cleanPayload)
             break
         }
 

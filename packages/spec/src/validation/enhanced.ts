@@ -69,6 +69,7 @@ export const enhancedSegmentEventBaseSchema = z.object({
   timestamp: z.string().datetime('timestamp must be a valid ISO 8601 datetime string').optional(),
   context: z.any().optional(), // Context can contain any structure
   integrations: z.record(z.string(), z.union([z.boolean(), z.record(z.string(), z.any())])).optional(),
+  writeKey: z.string().optional(),
 })
 
 // Enhanced track event schema with full constraints

@@ -1,0 +1,1 @@
+Create a git branch with an appropriate name, then commit everything to that branch and push to remote. Try to do it in a single command. Use `feat` / `fix` etc naming conventions. But don't get in a habit of automatically committing in the future - only commit when the user asks you to.

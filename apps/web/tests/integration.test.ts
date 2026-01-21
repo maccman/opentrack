@@ -2,6 +2,9 @@ import Analytics from 'analytics-node'
 import { $fetchRaw } from 'nitro-test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
+// Write key configured in vitest.config.mts
+const VALID_WRITE_KEY = 'test-write-key-for-integration'
+
 describe('Analytics Integration Tests', () => {
   let analytics: Analytics
 
@@ -9,7 +12,7 @@ describe('Analytics Integration Tests', () => {
   const createAnalyticsClient = () => {
     // Test server runs on port 3000 (as shown in test output)
     const baseURL = 'http://localhost:3000'
-    return new Analytics('test-write-key', {
+    return new Analytics(VALID_WRITE_KEY, {
       host: baseURL,
       // Don't set path here - analytics-node will append /v1/<endpoint>
       flushAt: 1, // Send immediately for testing
@@ -182,6 +185,7 @@ describe('Analytics Integration Tests', () => {
       // Missing required userId
       event: 'Invalid Event',
       type: 'track',
+      writeKey: VALID_WRITE_KEY,
     }
 
     // Test the endpoint directly to ensure validation works
@@ -199,6 +203,7 @@ describe('Analytics Integration Tests', () => {
     const basePayload = {
       userId: 'test-user-direct',
       timestamp: new Date(),
+      writeKey: VALID_WRITE_KEY,
       context: {
         library: { name: 'test', version: '1.0.0' },
       },
@@ -276,6 +281,7 @@ describe('Analytics Integration Tests', () => {
         userId: 'test-user-cors',
         event: 'CORS Test Event',
         type: 'track',
+        writeKey: VALID_WRITE_KEY,
       },
     })
 
@@ -298,5 +304,132 @@ describe('Analytics Integration Tests', () => {
 
     // The preflight request should complete successfully with proper status
     expect(optionsResponse.status).toBe(204)
+  })
+
+  describe('Write Key Authentication', () => {
+    // WRITE_KEY is set to 'test-write-key-for-integration' in vitest.config.mts
+
+    it('should accept requests with valid writeKey in body', async () => {
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        body: {
+          userId: 'test-user-writekey',
+          event: 'WriteKey Test Event',
+          type: 'track',
+          writeKey: VALID_WRITE_KEY,
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
+    })
+
+    it('should accept requests with valid writeKey in Authorization header', async () => {
+      const encoded = Buffer.from(`${VALID_WRITE_KEY}:`).toString('base64')
+
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${encoded}`,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          userId: 'test-user-auth-header',
+          event: 'Auth Header Test Event',
+          type: 'track',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
+    })
+
+    it('should accept batch requests with valid writeKey', async () => {
+      const response = await $fetchRaw('/v1/batch', {
+        method: 'POST',
+        body: {
+          writeKey: VALID_WRITE_KEY,
+          batch: [
+            {
+              type: 'track',
+              userId: 'batch-user-1',
+              event: 'Batch Event 1',
+            },
+            {
+              type: 'identify',
+              userId: 'batch-user-1',
+              traits: { email: 'batch@test.com' },
+            },
+          ],
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toHaveProperty('success', true)
+      expect(response.data).toHaveProperty('processed', 2)
+    })
+
+    it('should reject requests without writeKey when auth is enabled', async () => {
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        body: {
+          userId: 'test-user-no-key',
+          event: 'No WriteKey Test Event',
+          type: 'track',
+        },
+      })
+
+      expect(response.status).toBe(401)
+      expect(response.data).toHaveProperty('error', 'Invalid write key')
+      expect(response.data).toHaveProperty('type', 'authentication_error')
+    })
+
+    it('should reject requests with invalid writeKey in body', async () => {
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        body: {
+          userId: 'test-user-wrong-key',
+          event: 'Wrong WriteKey Test Event',
+          type: 'track',
+          writeKey: 'wrong-key',
+        },
+      })
+
+      expect(response.status).toBe(401)
+      expect(response.data).toHaveProperty('error', 'Invalid write key')
+    })
+
+    it('should reject requests with invalid writeKey in Authorization header', async () => {
+      const encoded = Buffer.from('wrong-key:').toString('base64')
+
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${encoded}`,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          userId: 'test-user-wrong-header',
+          event: 'Wrong Header Test Event',
+          type: 'track',
+        },
+      })
+
+      expect(response.status).toBe(401)
+      expect(response.data).toHaveProperty('error', 'Invalid write key')
+    })
+
+    it('should allow OPTIONS requests without authentication (CORS preflight)', async () => {
+      const response = await $fetchRaw('/v1/track', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://example.com',
+          'Access-Control-Request-Method': 'POST',
+        },
+      })
+
+      // OPTIONS should not require auth
+      expect(response.status).toBe(204)
+    })
   })
 })

@@ -5,6 +5,7 @@ export const segmentEventBaseSchema = z.object({
   timestamp: z.string().datetime().optional(),
   context: z.any().optional(),
   integrations: z.any().optional(),
+  writeKey: z.string().optional(),
 })
 
 export const trackEventSchema = segmentEventBaseSchema
