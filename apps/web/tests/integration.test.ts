@@ -299,4 +299,85 @@ describe('Analytics Integration Tests', () => {
     // The preflight request should complete successfully with proper status
     expect(optionsResponse.status).toBe(204)
   })
+
+  describe('Write Key Authentication', () => {
+    // Note: These tests run without WRITE_KEY env var set, so auth is disabled
+    // and all requests should succeed regardless of writeKey value
+
+    it('should accept requests with writeKey in body', async () => {
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        body: {
+          userId: 'test-user-writekey',
+          event: 'WriteKey Test Event',
+          type: 'track',
+          writeKey: 'test-write-key-123',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
+    })
+
+    it('should accept requests with writeKey in Authorization header', async () => {
+      // "test-write-key:" encoded in base64
+      const encoded = Buffer.from('test-write-key:').toString('base64')
+
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${encoded}`,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          userId: 'test-user-auth-header',
+          event: 'Auth Header Test Event',
+          type: 'track',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
+    })
+
+    it('should accept batch requests with writeKey', async () => {
+      const response = await $fetchRaw('/v1/batch', {
+        method: 'POST',
+        body: {
+          writeKey: 'test-write-key-batch',
+          batch: [
+            {
+              type: 'track',
+              userId: 'batch-user-1',
+              event: 'Batch Event 1',
+            },
+            {
+              type: 'identify',
+              userId: 'batch-user-1',
+              traits: { email: 'batch@test.com' },
+            },
+          ],
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toHaveProperty('success', true)
+      expect(response.data).toHaveProperty('processed', 2)
+    })
+
+    it('should accept requests without writeKey when auth is disabled', async () => {
+      // When WRITE_KEY env var is not set, requests without writeKey should work
+      const response = await $fetchRaw('/v1/track', {
+        method: 'POST',
+        body: {
+          userId: 'test-user-no-key',
+          event: 'No WriteKey Test Event',
+          type: 'track',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ success: true })
+    })
+  })
 })
