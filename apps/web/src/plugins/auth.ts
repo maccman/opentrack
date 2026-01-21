@@ -17,7 +17,7 @@
  * - All requests proceed without authentication
  */
 
-import { readBody, setResponseStatus } from 'h3'
+import { readBody, send, setResponseHeader, setResponseStatus } from 'h3'
 
 import {
   createUnauthorizedResponse,
@@ -62,9 +62,8 @@ export default defineNitroPlugin((nitroApp) => {
     // Validate the writeKey
     if (!validateWriteKey(writeKey)) {
       setResponseStatus(event, 401)
-      event.node.res.setHeader('Content-Type', 'application/json')
-      event.node.res.end(JSON.stringify(createUnauthorizedResponse()))
-      return
+      setResponseHeader(event, 'Content-Type', 'application/json')
+      return send(event, JSON.stringify(createUnauthorizedResponse()))
     }
   })
 })
