@@ -317,9 +317,12 @@ curl -X POST https://your-opentrack-deployment.vercel.app/v1/track \
   -d '{
         "userId": "user-123",
         "event": "Order Completed",
-        "properties": { "revenue": 42.00 }
+        "properties": { "revenue": 42.00 },
+        "messageId": "unique-message-id"
       }'
 ```
+
+> **Note:** The `messageId` field is optional — if omitted, integrations like BigQuery will auto-generate one.
 
 ## Development
 

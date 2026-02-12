@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 
 import { eventNameToTableName } from './case-converter'
@@ -19,7 +21,7 @@ function createBaseRow(payload: Payload): Record<string, unknown> {
   const timestamp = payload.timestamp ? new Date(payload.timestamp) : now
 
   return {
-    id: payload.messageId,
+    id: payload.messageId || randomUUID(),
     received_at: now,
     sent_at: timestamp,
     timestamp,
