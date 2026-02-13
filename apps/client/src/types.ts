@@ -62,6 +62,14 @@ export interface User {
   traits(): Record<string, unknown>
 }
 
+export interface CampaignInfo {
+  source?: string
+  medium?: string
+  name?: string
+  term?: string
+  content?: string
+}
+
 export interface ContextInfo extends Record<string, unknown> {
   page: {
     url: string
@@ -77,4 +85,5 @@ export interface ContextInfo extends Record<string, unknown> {
     width: number
     height: number
   }
+  campaign?: CampaignInfo
 }
