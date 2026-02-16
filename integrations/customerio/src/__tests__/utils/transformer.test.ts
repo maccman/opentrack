@@ -25,6 +25,48 @@ describe('CustomerioTransformer', () => {
       })
     })
 
+    it('should convert camelCase trait keys to snake_case', () => {
+      const payload: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        traits: {
+          firstName: 'John',
+          lastName: 'Doe',
+          companyName: 'Acme Corp',
+          phoneNumber: '+1234567890',
+        },
+      }
+
+      const result = CustomerioTransformer.transformIdentify(payload)
+      expect(result.traits).toEqual({
+        first_name: 'John',
+        last_name: 'Doe',
+        company_name: 'Acme Corp',
+        phone_number: '+1234567890',
+      })
+    })
+
+    it('should convert nested object keys to snake_case', () => {
+      const payload: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        traits: {
+          address: {
+            streetName: '123 Main St',
+            zipCode: '12345',
+          },
+        },
+      }
+
+      const result = CustomerioTransformer.transformIdentify(payload)
+      expect(result.traits).toEqual({
+        address: {
+          street_name: '123 Main St',
+          zip_code: '12345',
+        },
+      })
+    })
+
     it('should add created_at timestamp when timestamp is provided', () => {
       const call: IdentifyPayload = {
         type: 'identify',
@@ -67,6 +109,26 @@ describe('CustomerioTransformer', () => {
           revenue: 99.99,
           currency: 'USD',
         },
+      })
+    })
+
+    it('should convert camelCase property keys to snake_case', () => {
+      const call: TrackPayload = {
+        type: 'track',
+        userId: 'user123',
+        event: 'Purchase Completed',
+        properties: {
+          totalAmount: 99.99,
+          itemCount: 3,
+          paymentMethod: 'credit_card',
+        },
+      }
+
+      const result = CustomerioTransformer.transformTrack(call)
+      expect(result.properties).toEqual({
+        total_amount: 99.99,
+        item_count: 3,
+        payment_method: 'credit_card',
       })
     })
 
@@ -135,6 +197,26 @@ describe('CustomerioTransformer', () => {
       })
     })
 
+    it('should convert camelCase property keys to snake_case', () => {
+      const payload: PagePayload = {
+        type: 'page',
+        userId: 'user123',
+        name: 'Home',
+        properties: {
+          referrerUrl: 'https://google.com',
+          loadTime: 1.5,
+        },
+      }
+
+      const result = CustomerioTransformer.transformPage(payload)
+      expect(result.properties).toEqual({
+        referrer_url: 'https://google.com',
+        load_time: 1.5,
+        page_title: 'Home',
+        page_name: 'Home',
+      })
+    })
+
     it('should transform page call with only name', () => {
       const call: PagePayload = {
         type: 'page',
@@ -200,6 +282,24 @@ describe('CustomerioTransformer', () => {
           name: 'Acme Corp',
           industry: 'Technology',
         },
+      })
+    })
+
+    it('should convert camelCase trait keys to snake_case', () => {
+      const call: GroupPayload = {
+        type: 'group',
+        userId: 'user123',
+        groupId: 'company456',
+        traits: {
+          companyName: 'Acme Corp',
+          employeeCount: 100,
+        },
+      }
+
+      const result = CustomerioTransformer.transformGroup(call)
+      expect(result.traits).toEqual({
+        company_name: 'Acme Corp',
+        employee_count: 100,
       })
     })
 

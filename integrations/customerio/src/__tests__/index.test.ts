@@ -100,6 +100,26 @@ describe('CustomerioIntegration', () => {
       })
     })
 
+    it('should convert camelCase trait keys to snake_case', async () => {
+      const call: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        traits: {
+          firstName: 'John',
+          lastName: 'Doe',
+          companyName: 'Acme Corp',
+        },
+      }
+
+      await integration.identify(call)
+
+      expect(mockIdentify).toHaveBeenCalledWith('user123', {
+        first_name: 'John',
+        last_name: 'Doe',
+        company_name: 'Acme Corp',
+      })
+    })
+
     it('should validate email format', async () => {
       const call: IdentifyPayload = {
         type: 'identify',
