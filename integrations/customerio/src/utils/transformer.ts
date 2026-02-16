@@ -1,5 +1,6 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPayload } from '@app/spec'
 import { IdentifierType } from 'customerio-node'
+import { snakeCase } from 'lodash-es'
 
 export class CustomerioTransformer {
   /**
@@ -15,10 +16,8 @@ export class CustomerioTransformer {
       throw new Error('User ID is required for identify calls')
     }
 
-    // Ensure email is present if available in traits
-    const transformedTraits = { ...traits }
+    const transformedTraits = this.convertKeysToSnakeCase({ ...traits })
 
-    // Convert timestamp if present
     if (payload.timestamp) {
       transformedTraits.created_at = this.convertTimestamp(payload.timestamp)
     }
@@ -43,9 +42,8 @@ export class CustomerioTransformer {
       throw new Error('Event name is required for track calls')
     }
 
-    const transformedProperties = { ...properties }
+    const transformedProperties = this.convertKeysToSnakeCase({ ...properties })
 
-    // Add timestamp if present
     if (payload.timestamp) {
       transformedProperties.timestamp = this.convertTimestamp(payload.timestamp)
     }
@@ -81,16 +79,14 @@ export class CustomerioTransformer {
     const pageTitle = name || 'Page Viewed'
 
     const transformedProperties: Record<string, unknown> = {
-      ...properties,
+      ...this.convertKeysToSnakeCase({ ...properties }),
       page_title: pageTitle,
     }
 
-    // Add page-specific properties
     if (name) {
       transformedProperties.page_name = name
     }
 
-    // Add timestamp if present
     if (payload.timestamp) {
       transformedProperties.timestamp = this.convertTimestamp(payload.timestamp)
     }
@@ -126,9 +122,8 @@ export class CustomerioTransformer {
       throw new Error('Group ID is required for group calls')
     }
 
-    const transformedTraits = { ...traits }
+    const transformedTraits = this.convertKeysToSnakeCase({ ...traits })
 
-    // Add timestamp if present
     if (payload.timestamp) {
       transformedTraits.created_at = this.convertTimestamp(payload.timestamp)
     }
@@ -165,6 +160,31 @@ export class CustomerioTransformer {
       secondaryType: IdentifierType.Id,
       secondaryId: previousId,
     }
+  }
+
+  /**
+   * Recursively converts all object keys to snake_case
+   */
+  private static convertKeysToSnakeCase(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(obj)) {
+      const snakeKey = snakeCase(key)
+
+      if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+        result[snakeKey] = this.convertKeysToSnakeCase(value as Record<string, unknown>)
+      } else if (Array.isArray(value)) {
+        result[snakeKey] = (value as unknown[]).map((item: unknown) =>
+          item && typeof item === 'object' && !Array.isArray(item) && !(item instanceof Date)
+            ? this.convertKeysToSnakeCase(item as Record<string, unknown>)
+            : item
+        )
+      } else {
+        result[snakeKey] = value
+      }
+    }
+
+    return result
   }
 
   /**
