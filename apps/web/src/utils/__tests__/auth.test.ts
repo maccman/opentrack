@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  createAuthConfigurationErrorResponse,
   createUnauthorizedResponse,
   extractWriteKeyFromBody,
   extractWriteKeyFromHeader,
@@ -27,13 +28,21 @@ describe('Auth Utilities', () => {
   })
 
   describe('isAuthRequired', () => {
-    it('should return false when WRITE_KEY is not set', () => {
+    it('should return true when WRITE_KEY is not set', () => {
       vi.stubEnv('WRITE_KEY', '')
-      expect(isAuthRequired()).toBe(false)
+      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', '')
+      expect(isAuthRequired()).toBe(true)
     })
 
     it('should return true when WRITE_KEY is set', () => {
       vi.stubEnv('WRITE_KEY', 'test-key-123')
+      expect(isAuthRequired()).toBe(true)
+    })
+
+    it('should not bypass a configured key', () => {
+      vi.stubEnv('WRITE_KEY', 'test-key-123')
+      vi.stubEnv('NODE_ENV', 'test')
+      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
       expect(isAuthRequired()).toBe(true)
     })
   })
@@ -118,10 +127,21 @@ describe('Auth Utilities', () => {
   })
 
   describe('validateWriteKey', () => {
-    it('should return true when auth is not required (no WRITE_KEY configured)', () => {
+    it('should fail closed when no WRITE_KEY is configured', () => {
       vi.stubEnv('WRITE_KEY', '')
+      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', '')
+      expect(validateWriteKey(null)).toBe(false)
+      expect(validateWriteKey('any-key')).toBe(false)
+    })
+
+    it('should permit only an explicit non-production bypass', () => {
+      vi.stubEnv('WRITE_KEY', '')
+      vi.stubEnv('NODE_ENV', 'test')
+      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
       expect(validateWriteKey(null)).toBe(true)
-      expect(validateWriteKey('any-key')).toBe(true)
+
+      vi.stubEnv('NODE_ENV', 'production')
+      expect(validateWriteKey(null)).toBe(false)
     })
 
     it('should return false when auth is required but writeKey is null', () => {
@@ -146,6 +166,13 @@ describe('Auth Utilities', () => {
       expect(response).toEqual({
         error: 'Invalid write key',
         type: 'authentication_error',
+      })
+    })
+
+    it('should return a sanitized configuration error', () => {
+      expect(createAuthConfigurationErrorResponse()).toEqual({
+        error: 'Analytics ingestion is not configured',
+        type: 'configuration_error',
       })
     })
   })

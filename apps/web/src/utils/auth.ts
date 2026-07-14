@@ -5,23 +5,29 @@
  * Supports both Authorization header (Basic auth) and writeKey in request body.
  *
  * Environment Variables:
- * - WRITE_KEY: The expected write key value. If not set, authentication is disabled.
+ * - WRITE_KEY: The expected write key value. Missing/empty configuration fails closed.
+ * - OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST: Explicit local/test-only bypass.
  */
 
 /**
  * Get the configured write key from environment
- * Returns null if not configured (auth disabled)
+ * Returns null if not configured.
  */
 export function getConfiguredWriteKey(): string | null {
-  return process.env.WRITE_KEY || null
+  const writeKey = process.env.WRITE_KEY?.trim()
+  return writeKey || null
 }
 
 /**
- * Check if authentication is required
- * Auth is required only if WRITE_KEY env var is set
+ * The unauthenticated bypass is explicit and is never honored in production.
  */
+export function isUnauthenticatedIngestAllowed(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST === 'true'
+}
+
+/** Authentication is the default in every environment. */
 export function isAuthRequired(): boolean {
-  return getConfiguredWriteKey() !== null
+  return getConfiguredWriteKey() !== null || !isUnauthenticatedIngestAllowed()
 }
 
 /**
@@ -67,9 +73,9 @@ export function extractWriteKeyFromBody(body: unknown): string | null {
 export function validateWriteKey(writeKey: string | null): boolean {
   const configuredKey = getConfiguredWriteKey()
 
-  // If no key is configured, auth is disabled - allow all
+  // Missing configuration is accepted only by the explicit non-production bypass.
   if (configuredKey === null) {
-    return true
+    return isUnauthenticatedIngestAllowed()
   }
 
   // If key is configured, require a valid match
@@ -83,5 +89,12 @@ export function createUnauthorizedResponse(): { error: string; type: string } {
   return {
     error: 'Invalid write key',
     type: 'authentication_error',
+  }
+}
+
+export function createAuthConfigurationErrorResponse(): { error: string; type: string } {
+  return {
+    error: 'Analytics ingestion is not configured',
+    type: 'configuration_error',
   }
 }

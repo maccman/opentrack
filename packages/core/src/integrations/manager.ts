@@ -2,14 +2,16 @@ import type { Integration } from '@app/spec'
 import type { Logger } from 'pino'
 import pino from 'pino'
 
-import type { IntegrationPayload, IntegrationResult, LoggerConfig } from './types'
+import type { IntegrationPayload, IntegrationResult, LoggerConfig, SuppressionGuard } from './types'
 
 export class IntegrationManager {
   protected integrations: Integration[] = []
   protected logger: Logger | null = null
+  private suppressionGuard: SuppressionGuard | null = null
 
-  constructor(integrations: Integration[], loggerConfig?: LoggerConfig) {
+  constructor(integrations: Integration[], loggerConfig?: LoggerConfig, suppressionGuard?: SuppressionGuard) {
     this.integrations = integrations
+    this.suppressionGuard = suppressionGuard ?? null
 
     if (loggerConfig?.enabled) {
       this.logger =
@@ -35,11 +37,32 @@ export class IntegrationManager {
     // Strip writeKey before processing - it's for authentication only, not for integrations
     const { writeKey: _, ...cleanPayload } = payload as IntegrationPayload & { writeKey?: string }
 
+    if (this.suppressionGuard) {
+      try {
+        if (await this.suppressionGuard.isSuppressed(cleanPayload)) {
+          this.logger?.info({ type: cleanPayload.type }, 'Event suppressed by privacy ledger')
+          return this.integrations.map((integration) => ({
+            integrationName: integration.constructor.name,
+            success: true,
+            duration: 0,
+            suppressed: true,
+          }))
+        }
+      } catch {
+        this.logger?.error({ type: cleanPayload.type }, 'Privacy suppression check failed; event blocked')
+        return this.integrations.map((integration) => ({
+          integrationName: integration.constructor.name,
+          success: false,
+          duration: 0,
+          blocked: true,
+          error: new Error('Privacy suppression check failed closed'),
+        }))
+      }
+    }
+
     this.logger?.info(
       {
         type: cleanPayload.type,
-        userId: 'userId' in cleanPayload ? cleanPayload.userId : undefined,
-        anonymousId: 'anonymousId' in cleanPayload ? cleanPayload.anonymousId : undefined,
         timestamp: cleanPayload.timestamp,
       },
       'Processing event'

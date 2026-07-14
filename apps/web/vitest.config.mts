@@ -2,6 +2,7 @@ import { defineConfig } from 'nitro-test-utils/config'
 
 // Set WRITE_KEY before Nitro server builds
 process.env.WRITE_KEY = 'test-write-key-for-integration'
+process.env.OPENTRACK_ERASURE_SECRET = 'test-erasure-secret'
 
 export default defineConfig({
   nitro: {

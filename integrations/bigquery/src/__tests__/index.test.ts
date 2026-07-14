@@ -10,13 +10,16 @@ vi.mock('../utils/table-manager')
 // Mock the BigQuery client
 const mockInsert = vi.fn()
 const mockTable = vi.fn(() => ({ insert: mockInsert }))
-const mockDataset = vi.fn(() => ({ table: mockTable }))
+const mockGetTables = vi.fn()
+const mockDataset = vi.fn(() => ({ table: mockTable, getTables: mockGetTables }))
+const mockQuery = vi.fn()
 const mockBigQueryConstructor = vi.fn()
 
 vi.mock('@google-cloud/bigquery', () => {
   return {
     BigQuery: class MockBigQuery {
       dataset = mockDataset
+      query = mockQuery
       constructor(config: unknown) {
         mockBigQueryConstructor(config)
       }
@@ -43,6 +46,10 @@ describe('BigQueryIntegration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetTables.mockResolvedValue([[]])
+    mockQuery.mockImplementation(({ query }: { query: string }) =>
+      Promise.resolve(query.startsWith('SELECT') ? [[{ count: 0 }]] : [[]])
+    )
   })
 
   describe('with auto table management ENABLED', () => {
@@ -123,6 +130,73 @@ describe('BigQueryIntegration', () => {
         projectId: 'test-project',
         credentials: mockCredentials,
       })
+    })
+  })
+
+  describe('privacy erasure', () => {
+    function createTable(id: string, type: string, columns: string[]) {
+      return {
+        id,
+        getMetadata: vi.fn().mockResolvedValue([
+          {
+            type,
+            schema: { fields: columns.map((name) => ({ name })) },
+          },
+        ]),
+      }
+    }
+
+    it('enumerates every physical identity-bearing table while skipping views', async () => {
+      mockGetTables.mockResolvedValue([
+        [
+          createTable('tracks', 'TABLE', ['user_id', 'anonymous_id']),
+          createTable('product_purchased', 'TABLE', ['user_id']),
+          createTable('aliases', 'TABLE', ['user_id', 'previous_id']),
+          createTable('analytics_view', 'VIEW', ['user_id']),
+          createTable('unrelated', 'TABLE', ['event']),
+        ],
+      ])
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      const result = await integration.eraseUser('subject-123')
+
+      expect(result).toEqual({ status: 'erased', remainingRows: 0, pendingTableCount: 0 })
+      expect(mockGetTables).toHaveBeenCalledWith({ autoPaginate: true })
+      expect(mockQuery).toHaveBeenCalledTimes(6)
+
+      const queries = mockQuery.mock.calls.map(
+        ([options]) => options as { query: string; params: Record<string, unknown> }
+      )
+      expect(queries.every(({ params }) => params.userId === 'subject-123')).toBe(true)
+      expect(queries.every(({ query }) => !query.includes('subject-123'))).toBe(true)
+      expect(queries.some(({ query }) => query.includes('analytics_view'))).toBe(false)
+      expect(queries.some(({ query }) => query.includes('product_purchased'))).toBe(true)
+      expect(queries.some(({ query }) => query.includes('previous_id = @userId'))).toBe(true)
+    })
+
+    it('returns pending when insertAll rows are still in the streaming buffer', async () => {
+      mockGetTables.mockResolvedValue([[createTable('tracks', 'TABLE', ['user_id'])]])
+      mockQuery.mockImplementation(({ query }: { query: string }) => {
+        if (query.startsWith('DELETE')) {
+          return Promise.reject(new Error('DELETE would affect rows in the streaming buffer'))
+        }
+        return Promise.resolve([[{ count: 1 }]])
+      })
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).resolves.toEqual({
+        status: 'pending',
+        remainingRows: 1,
+        pendingTableCount: 1,
+      })
+    })
+
+    it('propagates non-streaming deletion errors', async () => {
+      mockGetTables.mockResolvedValue([[createTable('tracks', 'TABLE', ['user_id'])]])
+      mockQuery.mockRejectedValueOnce(new Error('permission denied'))
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).rejects.toThrow('permission denied')
     })
   })
 })

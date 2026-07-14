@@ -432,4 +432,56 @@ describe('Analytics Integration Tests', () => {
       expect(response.status).toBe(204)
     })
   })
+
+  it('does not attach browser CORS headers to the internal privacy route', async () => {
+    const response = await $fetchRaw('/internal/v1/privacy/erase', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://attacker.example',
+        Authorization: 'Bearer invalid',
+        'Idempotency-Key': 'f0509ab9-ecbe-4cab-b04a-af9693434589',
+      },
+      body: { userId: 'b9a54fe6-c995-4f14-9d85-0769b11dfe57' },
+    })
+
+    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+    expect(response.headers.get('access-control-allow-credentials')).toBeNull()
+  })
+
+  describe('Privacy Erasure Contract', () => {
+    it('never accepts the analytics WRITE_KEY as erasure authorization', async () => {
+      const response = await $fetchRaw('/internal/v1/privacy/erase', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${VALID_WRITE_KEY}`,
+          'Idempotency-Key': 'f0509ab9-ecbe-4cab-b04a-af9693434589',
+        },
+        body: { userId: 'b9a54fe6-c995-4f14-9d85-0769b11dfe57' },
+      })
+
+      expect(response.status).toBe(401)
+    })
+
+    it('requires a UUID idempotency key and a strict UUID-only body', async () => {
+      const missingKey = await $fetchRaw('/internal/v1/privacy/erase', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer test-erasure-secret' },
+        body: { userId: 'b9a54fe6-c995-4f14-9d85-0769b11dfe57' },
+      })
+      expect(missingKey.status).toBe(400)
+
+      const extraBodyField = await $fetchRaw('/internal/v1/privacy/erase', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-erasure-secret',
+          'Idempotency-Key': 'f0509ab9-ecbe-4cab-b04a-af9693434589',
+        },
+        body: {
+          userId: 'b9a54fe6-c995-4f14-9d85-0769b11dfe57',
+          email: 'must-not-be-accepted@example.com',
+        },
+      })
+      expect(extraBodyField.status).toBe(400)
+    })
+  })
 })

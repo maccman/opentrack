@@ -375,8 +375,6 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: 'user123',
-            anonymousId: 'anon123',
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -497,8 +495,6 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: undefined,
-            anonymousId: 'anon123',
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -524,12 +520,49 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'identify',
-            userId: 'user123',
-            anonymousId: undefined,
             timestamp: payload.timestamp,
           },
           'Processing event'
         )
+      })
+
+      it('should suppress before any integration fan-out', async () => {
+        const integration = new MockSuccessfulIntegration()
+        const track = vi.spyOn(integration, 'track')
+        const manager = new IntegrationManager([integration], undefined, {
+          isSuppressed: vi.fn().mockResolvedValue(true),
+        })
+
+        const results = await manager.process(createTrackPayload())
+
+        expect(track).not.toHaveBeenCalled()
+        expect(results).toEqual([
+          {
+            integrationName: 'MockSuccessfulIntegration',
+            success: true,
+            duration: 0,
+            suppressed: true,
+          },
+        ])
+      })
+
+      it('should fail closed before fan-out when the suppression datastore errors', async () => {
+        const integration = new MockSuccessfulIntegration()
+        const track = vi.spyOn(integration, 'track')
+        const manager = new IntegrationManager([integration], undefined, {
+          isSuppressed: vi.fn().mockRejectedValue(new Error('redis unavailable')),
+        })
+
+        const results = await manager.process(createTrackPayload())
+
+        expect(track).not.toHaveBeenCalled()
+        expect(results[0]).toMatchObject({
+          integrationName: 'MockSuccessfulIntegration',
+          success: false,
+          duration: 0,
+          blocked: true,
+        })
+        expect(results[0].error?.message).toBe('Privacy suppression check failed closed')
       })
     })
   })
