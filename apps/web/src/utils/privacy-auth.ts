@@ -10,9 +10,9 @@ function constantTimeEqual(candidate: string, expected: string): boolean {
   return timingSafeEqual(candidateDigest, expectedDigest)
 }
 
-/** Validates the dedicated server-only privacy credential. */
+/** Validates the server-only OpenTrack credential. */
 export function validatePrivacyAuthorization(authorizationHeader: string | undefined): PrivacyAuthResult {
-  const expectedSecret = process.env.OPENTRACK_ERASURE_SECRET
+  const expectedSecret = process.env.OPENTRACK_SECRET
   if (!expectedSecret || expectedSecret.trim().length === 0 || expectedSecret.length > MAX_AUTHORIZATION_LENGTH) {
     return 'misconfigured'
   }

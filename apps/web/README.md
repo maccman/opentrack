@@ -11,7 +11,7 @@ Only public `/v1/*` ingestion routes receive these browser CORS headers; interna
 
 ## Privacy Erasure
 
-Set `OPENTRACK_ERASURE_SECRET` to a dedicated server-only credential. When BigQuery and Customer.io are both
+Set `OPENTRACK_SECRET` to the server-only credential for authenticated OpenTrack endpoints. When BigQuery and Customer.io are both
 configured, `POST /internal/v1/privacy/erase` accepts a strict `{"userId":"<UUID>"}` JSON body and deletes the data
 currently associated with that identifier. The endpoint keeps no suppression state, so later events require another
 erasure request.

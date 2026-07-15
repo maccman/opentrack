@@ -5,4 +5,4 @@
 
 // Set WRITE_KEY before anything else runs
 process.env.WRITE_KEY = 'test-write-key-for-integration'
-process.env.OPENTRACK_ERASURE_SECRET = 'test-erasure-secret'
+process.env.OPENTRACK_SECRET = 'test-erasure-secret'

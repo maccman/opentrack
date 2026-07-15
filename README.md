@@ -159,8 +159,8 @@ Follow these steps to set up and run your own instance of OpenTrack.
     # Optional: Set to 'false' to manage BigQuery schema manually
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
 
-    # Dedicated server-to-server credential for privacy erasure
-    OPENTRACK_ERASURE_SECRET=generate-a-long-random-server-secret
+    # Server-to-server credential for authenticated OpenTrack endpoints
+    OPENTRACK_SECRET=generate-a-long-random-server-secret
     ```
 
     You will also need to set up Google Cloud authentication. Refer to the instructions in the [Google BigQuery integration README](./integrations/bigquery/README.md).
@@ -168,7 +168,7 @@ Follow these steps to set up and run your own instance of OpenTrack.
 ### Privacy erasure
 
 `POST /internal/v1/privacy/erase` deletes the subject data currently held by BigQuery and Customer.io. It requires
-`Authorization: Bearer $OPENTRACK_ERASURE_SECRET`, `Content-Type: application/json`, and a strict body of
+`Authorization: Bearer $OPENTRACK_SECRET`, `Content-Type: application/json`, and a strict body of
 `{"userId":"<UUID>"}`. The endpoint is available only when both destinations are configured and no generic webhook
 destination is enabled.
 
