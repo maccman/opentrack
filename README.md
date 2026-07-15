@@ -158,9 +158,28 @@ Follow these steps to set up and run your own instance of OpenTrack.
     BIGQUERY_DATASET=your_bigquery_dataset_name
     # Optional: Set to 'false' to manage BigQuery schema manually
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
+
+    # Dedicated server-to-server credential for privacy erasure
+    OPENTRACK_ERASURE_SECRET=generate-a-long-random-server-secret
     ```
 
     You will also need to set up Google Cloud authentication. Refer to the instructions in the [Google BigQuery integration README](./integrations/bigquery/README.md).
+
+### Privacy erasure
+
+`POST /internal/v1/privacy/erase` deletes the subject data currently held by BigQuery and Customer.io. It requires
+`Authorization: Bearer $OPENTRACK_ERASURE_SECRET`, `Content-Type: application/json`, and a strict body of
+`{"userId":"<UUID>"}`. The endpoint is available only when both destinations are configured and no generic webhook
+destination is enabled.
+
+The erasure is intentionally stateless: OpenTrack stores no tombstone or suppression record. Customer.io deletes the
+person without suppressing the identifier, so later analytics can recreate that person. Normal analytics requests
+continue to fan out to every configured integration, including both BigQuery and Customer.io. If new events arrive
+after an erasure, call the endpoint again.
+
+BigQuery rows still in its streaming buffer produce `202 Accepted` with a `Retry-After` header. Retry until the endpoint
+returns `200 OK`, which means no matching rows were observed at verification time. The BigQuery service account needs
+permission to list dataset tables, run delete queries, and read rows for verification.
 
 ## Usage
 

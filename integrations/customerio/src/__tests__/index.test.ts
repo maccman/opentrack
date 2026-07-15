@@ -2,6 +2,7 @@ import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPay
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CustomerioIntegration } from '../index'
+import { CustomerioErrorHandler } from '../utils'
 
 // Mock the customerio-node module
 const mockIdentify = vi.fn().mockResolvedValue({})
@@ -9,6 +10,7 @@ const mockTrack = vi.fn().mockResolvedValue({})
 const mockTrackAnonymous = vi.fn().mockResolvedValue({})
 const mockTrackPageView = vi.fn().mockResolvedValue({})
 const mockMergeCustomers = vi.fn().mockResolvedValue({})
+const mockDestroy = vi.fn().mockResolvedValue({})
 
 vi.mock('customerio-node', () => ({
   TrackClient: class MockTrackClient {
@@ -17,6 +19,7 @@ vi.mock('customerio-node', () => ({
     trackAnonymous = mockTrackAnonymous
     trackPageView = mockTrackPageView
     mergeCustomers = mockMergeCustomers
+    destroy = mockDestroy
   },
   RegionUS: 'US',
   RegionEU: 'EU',
@@ -313,6 +316,45 @@ describe('CustomerioIntegration', () => {
       await integration.alias(call)
 
       expect(mockMergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
+    })
+  })
+
+  describe('privacy erasure', () => {
+    it('deletes the person without suppressing their identifier', async () => {
+      await integration.eraseUser('user-123')
+
+      expect(mockDestroy).toHaveBeenCalledWith('user-123')
+      expect(mockDestroy).toHaveBeenCalledTimes(1)
+    })
+
+    it('treats an already-missing person as erased', async () => {
+      mockDestroy.mockRejectedValueOnce({ statusCode: 404 })
+
+      await expect(integration.eraseUser('user-123')).resolves.toBeUndefined()
+      expect(mockDestroy).toHaveBeenCalledTimes(1)
+    })
+
+    it('retries a transient deletion failure', async () => {
+      vi.spyOn(CustomerioErrorHandler, 'getRetryDelay').mockReturnValue(0)
+      mockDestroy.mockRejectedValueOnce({ statusCode: 500 }).mockResolvedValueOnce({})
+      const retryingIntegration = new CustomerioIntegration({
+        siteId: 'site-id',
+        apiKey: 'api-key',
+        retryAttempts: 2,
+      })
+
+      await retryingIntegration.eraseUser('user-123')
+
+      expect(mockDestroy).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not retry a non-retryable deletion failure', async () => {
+      mockDestroy.mockRejectedValueOnce({ statusCode: 401 })
+
+      await expect(integration.eraseUser('user-123')).rejects.toMatchObject({
+        code: 'AUTHENTICATION_ERROR',
+      })
+      expect(mockDestroy).toHaveBeenCalledTimes(1)
     })
   })
 

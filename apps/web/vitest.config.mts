@@ -2,6 +2,12 @@ import { defineConfig } from 'nitro-test-utils/config'
 
 // Set WRITE_KEY before Nitro server builds
 process.env.WRITE_KEY = 'test-write-key-for-integration'
+process.env.OPENTRACK_ERASURE_SECRET = 'test-erasure-secret'
+delete process.env.BIGQUERY_PROJECT_ID
+delete process.env.BIGQUERY_DATASET
+delete process.env.CUSTOMERIO_SITE_ID
+delete process.env.CUSTOMERIO_API_KEY
+delete process.env.WEBHOOK_URL
 
 export default defineConfig({
   nitro: {

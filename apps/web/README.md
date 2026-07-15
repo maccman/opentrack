@@ -7,6 +7,14 @@ Look at the [nitro quick start](https://nitro.unjs.io/guide#quick-start) to lear
 ## CORS Configuration
 
 The API includes built-in CORS (Cross-Origin Resource Sharing) support optimized for analytics endpoints.
+Only public `/v1/*` ingestion routes receive these browser CORS headers; internal server-to-server routes do not.
+
+## Privacy Erasure
+
+Set `OPENTRACK_ERASURE_SECRET` to a dedicated server-only credential. When BigQuery and Customer.io are both
+configured, `POST /internal/v1/privacy/erase` accepts a strict `{"userId":"<UUID>"}` JSON body and deletes the data
+currently associated with that identifier. The endpoint keeps no suppression state, so later events require another
+erasure request.
 
 ### Environment Variables
 
