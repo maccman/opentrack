@@ -1,6 +1,5 @@
 import type { LoggerConfig } from '@app/core'
 import { IntegrationManager } from '@app/core'
-import type { Integration } from '@app/spec'
 import { BigQueryIntegration, type BigQueryIntegrationConfig } from '@integrations/bigquery'
 import { CustomerioIntegration, type CustomerioConfig } from '@integrations/customerio'
 import { WebhookIntegration, type WebhookIntegrationConfig } from '@integrations/webhook'
@@ -100,6 +99,7 @@ const EU_REGION = 'EU' as const
  *
  * Optional environment variables:
  * - CUSTOMERIO_REGION: Customer.io region ('EU' or 'US', defaults to 'US')
+ * - CUSTOMERIO_ANONYMOUS_EVENT_MERGE_ENABLED: Operator confirmation that workspace merging is enabled
  *
  * @returns Customer.io integration instance or null if required variables are missing
  */
@@ -158,18 +158,17 @@ function createWebhookIntegration(): WebhookIntegration | null {
 // =============================================================================
 
 /**
- * Creates and returns all available integrations based on environment configuration
+ * Creates each known destination based on environment configuration.
  *
- * This function attempts to create each integration type and filters out any
- * that couldn't be created due to missing required environment variables.
- *
- * @returns Array of successfully configured integration instances
+ * Keeping the destinations named lets privacy erasure fail closed when an
+ * enabled destination is not explicitly supported by the erasure service.
  */
-function createIntegrations(): Integration[] {
-  const integrationFactories = [createBigQueryIntegration, createCustomerioIntegration, createWebhookIntegration]
-  const integrations: Array<Integration | null> = integrationFactories.map((factory) => factory())
-
-  return integrations.filter((integration): integration is Integration => integration !== null)
+function createConfiguredDestinations() {
+  return {
+    bigQuery: createBigQueryIntegration(),
+    customerIo: createCustomerioIntegration(),
+    webhook: createWebhookIntegration(),
+  }
 }
 
 /**
@@ -215,24 +214,24 @@ function createLoggerConfig(): LoggerConfig | undefined {
  * This is the primary export that should be used throughout the application
  * to access integration functionality.
  */
-const configuredIntegrations = createIntegrations()
-const bigQueryIntegration = configuredIntegrations.find(
-  (integration): integration is BigQueryIntegration => integration instanceof BigQueryIntegration
-)
-const customerioIntegration = configuredIntegrations.find(
-  (integration): integration is CustomerioIntegration => integration instanceof CustomerioIntegration
-)
-const webhookConfigured = configuredIntegrations.some(
-  (integration): integration is WebhookIntegration => integration instanceof WebhookIntegration
+const configuredDestinations = createConfiguredDestinations()
+const configuredIntegrations = Object.values(configuredDestinations).filter((integration) => integration !== null)
+const privacyErasableDestinationNames = new Set(['bigQuery', 'customerIo'])
+const customerIoAnonymousEventMergeConfirmed = getOptionalEnvVar('CUSTOMERIO_ANONYMOUS_EVENT_MERGE_ENABLED') === 'true'
+const unsupportedPrivacyDestinationConfigured = Object.entries(configuredDestinations).some(
+  ([name, integration]) => integration !== null && !privacyErasableDestinationNames.has(name)
 )
 
 /**
- * Erasure is available only when both Picardo destinations are configured and
- * no generic webhook can retain an undeletable copy.
+ * Erasure is available only when both supported destinations are configured
+ * and every configured destination is explicitly covered by erasure.
  */
 export const privacyErasureService =
-  bigQueryIntegration && customerioIntegration && !webhookConfigured
-    ? new PrivacyErasureService(bigQueryIntegration, customerioIntegration)
+  configuredDestinations.bigQuery &&
+  configuredDestinations.customerIo &&
+  customerIoAnonymousEventMergeConfirmed &&
+  !unsupportedPrivacyDestinationConfigured
+    ? new PrivacyErasureService(configuredDestinations.bigQuery, configuredDestinations.customerIo)
     : null
 
 export const integrationManager = new IntegrationManager(configuredIntegrations, createLoggerConfig())

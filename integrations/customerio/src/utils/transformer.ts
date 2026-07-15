@@ -22,6 +22,12 @@ export class CustomerioTransformer {
       transformedTraits.created_at = this.convertTimestamp(payload.timestamp)
     }
 
+    // Customer.io's server-side API uses this attribute to associate activity
+    // recorded before identification with the identified person.
+    if (payload.anonymousId) {
+      transformedTraits.anonymous_id = payload.anonymousId
+    }
+
     return {
       id: userId,
       traits: transformedTraits,

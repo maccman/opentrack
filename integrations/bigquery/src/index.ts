@@ -1,6 +1,14 @@
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
 import { BigQuery, type Table } from '@google-cloud/bigquery'
 
+import {
+  BIGQUERY_ERASURE_TRANSACTION_TABLE_LIMIT,
+  buildBigQueryErasureBatchScript,
+  type BigQueryErasableTable,
+  getBigQueryIdentityColumns,
+  isBigQueryStreamingBufferError,
+  partitionBigQueryErasureTables,
+} from './erasure'
 import { getTableNames, TableManager, transformToRow } from './utils'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
@@ -14,43 +22,11 @@ export interface BigQueryIntegrationConfig {
 
 export interface BigQueryErasureResult {
   status: 'erased' | 'pending'
-  remainingRows: number
-  pendingTableCount: number
-}
-
-interface ErasableTable {
-  tableId: string
-  predicates: string[]
 }
 
 const ERASURE_QUERY_CONCURRENCY = 5
-
-function quoteTablePath(projectId: string, datasetId: string, tableId: string): string {
-  if (!/^[a-z][\da-z-]{4,61}[\da-z]$/.test(projectId)) {
-    throw new Error('Invalid BigQuery project identifier')
-  }
-  if (!/^\w+$/.test(datasetId) || !/^\w+$/.test(tableId)) {
-    throw new Error('Invalid BigQuery dataset or table identifier')
-  }
-  return `\`${projectId}.${datasetId}.${tableId}\``
-}
-
-function isLegacyStreamingBufferError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-  return message.toLowerCase().includes('streaming buffer')
-}
-
-function parseCountRow(row: unknown): number {
-  if (!row || typeof row !== 'object' || !('count' in row)) {
-    throw new Error('BigQuery erasure verification returned an invalid count')
-  }
-
-  const count = row.count
-  if (typeof count === 'object' && count && 'value' in count) {
-    return Number(count.value)
-  }
-  return Number(count)
-}
+// Erasure batches mutate no temporary table, so all 100 transaction mutation slots can target physical event tables.
+const ERASURE_MUTATION_BATCH_SIZE = BIGQUERY_ERASURE_TRANSACTION_TABLE_LIMIT
 
 async function processInBatches<T>(items: T[], operation: (item: T) => Promise<void>): Promise<void> {
   for (let index = 0; index < items.length; index += ERASURE_QUERY_CONCURRENCY) {
@@ -119,6 +95,16 @@ export class BigQueryIntegration implements Integration {
 
   private async insertToAllTables(payload: Payload) {
     const tableNames = getTableNames(payload)
+
+    // `tracks` is the durable retry anchor for every event-specific track row. Write it first so
+    // a failed canonical insert can never leave a derivative row as the only identity link.
+    if (payload.type === 'track') {
+      await this.insert(payload, 'tracks')
+      const eventSpecificTables = tableNames.filter((tableName) => tableName !== 'tracks')
+      await Promise.all(eventSpecificTables.map((tableName) => this.insert(payload, tableName)))
+      return
+    }
+
     await Promise.all(tableNames.map((tableName) => this.insert(payload, tableName)))
   }
 
@@ -142,9 +128,9 @@ export class BigQueryIntegration implements Integration {
     await this.insertToAllTables(payload)
   }
 
-  private async getErasableTables(): Promise<ErasableTable[]> {
+  private async getErasableTables(): Promise<BigQueryErasableTable[]> {
     const [tables] = await this.client.dataset(this.config.datasetId).getTables({ autoPaginate: true })
-    const erasableTables: ErasableTable[] = []
+    const erasableTables: BigQueryErasableTable[] = []
 
     await processInBatches(tables, async (table: Table) => {
       const metadataResponse: unknown = await table.getMetadata()
@@ -155,84 +141,80 @@ export class BigQueryIntegration implements Integration {
       if (!metadata || typeof metadata !== 'object') {
         throw new TypeError('BigQuery returned invalid table metadata')
       }
-      if (!('type' in metadata) || metadata.type !== 'TABLE' || !table.id) {
+      if (!('type' in metadata) || typeof metadata.type !== 'string') {
+        throw new TypeError('BigQuery returned table metadata without a type')
+      }
+      if (metadata.type !== 'TABLE') {
         return
+      }
+      if (!table.id) {
+        throw new TypeError('BigQuery returned a physical table without an identifier')
       }
 
       const schema = 'schema' in metadata ? metadata.schema : undefined
-      const fields: unknown[] =
-        schema && typeof schema === 'object' && !Array.isArray(schema) && 'fields' in schema
-          ? Array.isArray(schema.fields)
-            ? schema.fields
-            : []
-          : Array.isArray(schema)
-            ? schema
-            : []
-      const columnNames = new Set(
-        fields.flatMap((field) =>
-          field && typeof field === 'object' && 'name' in field && typeof field.name === 'string' ? [field.name] : []
-        )
-      )
-      const predicates = [
-        columnNames.has('user_id') ? 'user_id = @userId' : null,
-        columnNames.has('anonymous_id') ? 'anonymous_id = @userId' : null,
-        columnNames.has('previous_id') ? 'previous_id = @userId' : null,
-      ].filter((predicate): predicate is string => predicate !== null)
+      if (!schema || typeof schema !== 'object' || Array.isArray(schema) || !('fields' in schema)) {
+        throw new TypeError(`BigQuery table ${table.id} returned invalid schema metadata`)
+      }
+      const fields = schema.fields
+      const identityColumns = getBigQueryIdentityColumns(table.id, fields)
 
-      if (predicates.length > 0) {
-        erasableTables.push({ tableId: table.id, predicates })
+      if (identityColumns.length > 0) {
+        erasableTables.push({ tableId: table.id, identityColumns })
       }
     })
 
     return erasableTables.sort((left, right) => left.tableId.localeCompare(right.tableId))
   }
 
-  /** Deletes and verifies rows that currently bear this identifier. */
+  /** Deletes one rooted identity across retry-safe batches while preserving canonical anchors until last. */
   public async eraseUser(userId: string): Promise<BigQueryErasureResult> {
     const tables = await this.getErasableTables()
-    const streamingBlockedTables = new Set<string>()
+    if (tables.length === 0) {
+      return { status: 'erased' }
+    }
 
-    await processInBatches(tables, async ({ tableId, predicates }) => {
-      const tablePath = quoteTablePath(this.config.projectId, this.config.datasetId, tableId)
+    const { canonicalTables, eventSpecificTables } = partitionBigQueryErasureTables(tables)
+    const eventSpecificBatches: BigQueryErasableTable[][] = []
+    for (let index = 0; index < eventSpecificTables.length; index += ERASURE_MUTATION_BATCH_SIZE) {
+      eventSpecificBatches.push(eventSpecificTables.slice(index, index + ERASURE_MUTATION_BATCH_SIZE))
+    }
+
+    // Build every script before the first mutation. Unsafe identifiers or invalid plans therefore
+    // fail closed without partially erasing event-specific data.
+    const queries = eventSpecificBatches.map((mutationTables) =>
+      buildBigQueryErasureBatchScript({
+        projectId: this.config.projectId,
+        datasetId: this.config.datasetId,
+        canonicalTables,
+        mutationTables,
+      })
+    )
+    if (canonicalTables.length > 0) {
+      queries.push(
+        buildBigQueryErasureBatchScript({
+          projectId: this.config.projectId,
+          datasetId: this.config.datasetId,
+          canonicalTables,
+          mutationTables: canonicalTables,
+        })
+      )
+    }
+
+    for (const query of queries) {
       try {
         await this.client.query({
-          query: `DELETE FROM ${tablePath} WHERE ${predicates.join(' OR ')}`,
+          query,
           params: { userId },
           types: { userId: 'STRING' },
         })
       } catch (error) {
-        if (isLegacyStreamingBufferError(error)) {
-          streamingBlockedTables.add(tableId)
-          return
+        if (isBigQueryStreamingBufferError(error)) {
+          return { status: 'pending' }
         }
         throw error
       }
-    })
-
-    let remainingRows = 0
-    const tablesWithRemainingRows = new Set<string>()
-    await processInBatches(tables, async ({ tableId, predicates }) => {
-      const tablePath = quoteTablePath(this.config.projectId, this.config.datasetId, tableId)
-      const [rows] = await this.client.query({
-        query: `SELECT COUNT(1) AS count FROM ${tablePath} WHERE ${predicates.join(' OR ')}`,
-        params: { userId },
-        types: { userId: 'STRING' },
-      })
-      const count = parseCountRow(rows[0])
-      if (!Number.isSafeInteger(count) || count < 0) {
-        throw new Error('BigQuery erasure verification returned an invalid count')
-      }
-      remainingRows += count
-      if (count > 0) {
-        tablesWithRemainingRows.add(tableId)
-      }
-    })
-
-    const pendingTableCount = new Set([...streamingBlockedTables, ...tablesWithRemainingRows]).size
-    return {
-      status: pendingTableCount === 0 && remainingRows === 0 ? 'erased' : 'pending',
-      remainingRows,
-      pendingTableCount,
     }
+
+    return { status: 'erased' }
   }
 }

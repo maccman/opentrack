@@ -152,6 +152,8 @@ Follow these steps to set up and run your own instance of OpenTrack.
     CUSTOMERIO_SITE_ID=your-customerio-site-id
     CUSTOMERIO_API_KEY=your-customerio-api-key
     CUSTOMERIO_REGION=US # or EU
+    # Required for privacy erasure after verifying Settings > Workspace Settings > Merge Options
+    CUSTOMERIO_ANONYMOUS_EVENT_MERGE_ENABLED=true
 
     # Google BigQuery
     BIGQUERY_PROJECT_ID=your-gcp-project-id
@@ -159,7 +161,7 @@ Follow these steps to set up and run your own instance of OpenTrack.
     # Optional: Set to 'false' to manage BigQuery schema manually
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
 
-    # Server-to-server credential for authenticated OpenTrack endpoints
+    # Server-to-server credential; must contain no whitespace and differ from WRITE_KEY
     OPENTRACK_SECRET=generate-a-long-random-server-secret
     ```
 
@@ -169,17 +171,33 @@ Follow these steps to set up and run your own instance of OpenTrack.
 
 `POST /internal/v1/privacy/erase` deletes the subject data currently held by BigQuery and Customer.io. It requires
 `Authorization: Bearer $OPENTRACK_SECRET`, `Content-Type: application/json`, and a strict body of
-`{"userId":"<UUID>"}`. The endpoint is available only when both destinations are configured and no generic webhook
-destination is enabled.
+`{"userId":"<UUID>"}`. Keep `OPENTRACK_SECRET` server-only, free of whitespace, and different from the browser-visible
+`WRITE_KEY`. The endpoint is available only when both destinations are configured and every enabled destination is
+explicitly supported by erasure; for example, enabling the generic webhook makes the endpoint unavailable. It also
+requires `CUSTOMERIO_ANONYMOUS_EVENT_MERGE_ENABLED=true` as an operator confirmation that Anonymous event merge is on
+under Customer.io **Settings > Workspace Settings > Merge Options**. New Customer.io workspaces enable it by default;
+workspaces created before July 2021 may not. Without it, anonymous activity cannot be associated with—and deleted with—
+the identified person. Customer.io retains unmerged anonymous events for up to 30 days.
 
-The erasure is intentionally stateless: OpenTrack stores no tombstone or suppression record. Customer.io deletes the
-person without suppressing the identifier, so later analytics can recreate that person. Normal analytics requests
-continue to fan out to every configured integration, including both BigQuery and Customer.io. If new events arrive
-after an erasure, call the endpoint again.
+The caller must stop new analytics for the subject and allow already accepted or in-flight ingestion to finish before
+requesting erasure. OpenTrack does not coordinate ingestion with erasure, so an asynchronous destination write can
+otherwise land after the erasure transaction commits.
 
-BigQuery rows still in its streaming buffer produce `202 Accepted` with a `Retry-After` header. Retry until the endpoint
-returns `200 OK`, which means no matching rows were observed at verification time. The BigQuery service account needs
-permission to list dataset tables, run delete queries, and read rows for verification.
+The erasure is intentionally stateless: OpenTrack stores no tombstone or suppression record. Customer.io uses delete,
+not suppression, so the current person is removed but later analytics can recreate the identifier. Normal analytics
+requests continue to fan out to every configured integration, including both BigQuery and Customer.io. If new events
+arrive after an erasure, call the endpoint again.
+
+BigQuery deletes rows bearing the requested `user_id`, rows bearing that ID or a directly observed anonymous ID in
+`anonymous_id`, and alias records whose `previous_id` is the requested ID. Browser-supplied `previous_id` values are not
+promoted into additional user roots. If a deployment has historical user IDs from a trusted system of record, call the
+endpoint once for each trusted ID.
+
+Rows still in BigQuery's streaming buffer produce `202 Accepted` with a `Retry-After` header. Retry until the endpoint
+returns `200 OK`, which means every rollback-safe BigQuery mutation batch committed and Customer.io accepted its
+deletion. Event-specific batches run before the canonical identity tables, which remain available as retry anchors until
+the final batch. The BigQuery service account needs permission to list physical dataset tables, read their schemas and
+identity rows, and run transactional delete queries.
 
 ## Usage
 

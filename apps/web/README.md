@@ -11,10 +11,23 @@ Only public `/v1/*` ingestion routes receive these browser CORS headers; interna
 
 ## Privacy Erasure
 
-Set `OPENTRACK_SECRET` to the server-only credential for authenticated OpenTrack endpoints. When BigQuery and Customer.io are both
-configured, `POST /internal/v1/privacy/erase` accepts a strict `{"userId":"<UUID>"}` JSON body and deletes the data
-currently associated with that identifier. The endpoint keeps no suppression state, so later events require another
-erasure request.
+Set `OPENTRACK_SECRET` to a server-only credential with no whitespace that differs from the browser-visible
+`WRITE_KEY`. When BigQuery and Customer.io are both configured and no unsupported destination is enabled,
+`POST /internal/v1/privacy/erase` accepts a strict `{"userId":"<UUID>"}` JSON body and deletes the data currently
+associated with that identifier. Erasure additionally requires `CUSTOMERIO_ANONYMOUS_EVENT_MERGE_ENABLED=true` after
+an operator verifies that **Settings > Workspace Settings > Merge Options > Anonymous event merge** is enabled in
+Customer.io. That setting lets Customer.io associate recent anonymous activity with the person deleted by this endpoint.
+
+Before calling the endpoint, stop new analytics for the subject and allow already accepted or in-flight ingestion to
+finish. Ingestion dispatches destination writes asynchronously and does not coordinate them with erasure. The endpoint
+keeps no tombstone or suppression state, so events that arrive later require another erasure request. Customer.io uses
+delete rather than suppression: the current person is removed, but later analytics can recreate the identifier.
+BigQuery deletes the requested `user_id`, directly observed anonymous activity for that root, and alias records that
+refer directly to the requested ID. Browser-supplied `previous_id` values are not promoted into additional user roots;
+call the endpoint once for every historical user ID known by a trusted source. Each mutation batch is atomic, and
+canonical identity tables are kept as retry anchors until the final batch. A `200` response means every BigQuery batch
+committed and Customer.io accepted its deletion; a `202` response means streamed BigQuery rows still require a later
+retry.
 
 ### Environment Variables
 
@@ -61,4 +74,4 @@ CORS_ALLOWED_ORIGINS="https://myapp.com"
 
 - In development mode, localhost origins are automatically allowed even if not explicitly configured
 - The middleware automatically handles preflight OPTIONS requests
-- CORS headers are applied to all routes automatically
+- CORS headers are applied automatically only to public `/v1/*` ingestion routes

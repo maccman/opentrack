@@ -79,6 +79,21 @@ describe('CustomerioTransformer', () => {
       expect(result.traits.created_at).toBe(1672531200)
     })
 
+    it('should preserve the anonymous identity for Customer.io activity merging', () => {
+      const call: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        anonymousId: 'anonymous123',
+        traits: { anonymousId: 'must-not-override-the-payload' },
+      }
+
+      const result = CustomerioTransformer.transformIdentify(call)
+
+      expect(result.traits).toEqual({
+        anonymous_id: 'anonymous123',
+      })
+    })
+
     it('should throw error when userId is missing', () => {
       const call = {
         type: 'identify',

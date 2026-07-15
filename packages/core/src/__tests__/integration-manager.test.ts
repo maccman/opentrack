@@ -375,8 +375,8 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: 'user123',
-            anonymousId: 'anon123',
+            hasUserId: true,
+            hasAnonymousId: true,
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -497,8 +497,8 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: undefined,
-            anonymousId: 'anon123',
+            hasUserId: false,
+            hasAnonymousId: true,
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -524,8 +524,8 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'identify',
-            userId: 'user123',
-            anonymousId: undefined,
+            hasUserId: true,
+            hasAnonymousId: false,
             timestamp: payload.timestamp,
           },
           'Processing event'

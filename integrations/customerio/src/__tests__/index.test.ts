@@ -123,6 +123,22 @@ describe('CustomerioIntegration', () => {
       })
     })
 
+    it('should associate prior anonymous activity when identifying a user', async () => {
+      const call: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        anonymousId: 'anonymous123',
+        traits: { role: 'patient' },
+      }
+
+      await integration.identify(call)
+
+      expect(mockIdentify).toHaveBeenCalledWith('user123', {
+        role: 'patient',
+        anonymous_id: 'anonymous123',
+      })
+    })
+
     it('should validate email format', async () => {
       const call: IdentifyPayload = {
         type: 'identify',

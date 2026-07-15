@@ -9,7 +9,7 @@ vi.mock('../utils/table-manager')
 
 // Mock the BigQuery client
 const mockInsert = vi.fn()
-const mockTable = vi.fn(() => ({ insert: mockInsert }))
+const mockTable = vi.fn((_tableId: string) => ({ insert: mockInsert }))
 const mockGetTables = vi.fn()
 const mockDataset = vi.fn(() => ({ table: mockTable, getTables: mockGetTables }))
 const mockQuery = vi.fn()
@@ -47,9 +47,7 @@ describe('BigQueryIntegration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetTables.mockResolvedValue([[]])
-    mockQuery.mockImplementation(({ query }: { query: string }) =>
-      Promise.resolve(query.startsWith('SELECT') ? [[{ count: 0 }]] : [[]])
-    )
+    mockQuery.mockResolvedValue([[]])
   })
 
   describe('with auto table management ENABLED', () => {
@@ -67,6 +65,22 @@ describe('BigQueryIntegration', () => {
         insertWithAutoSchema: ReturnType<typeof vi.fn>
       }
       expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(2)
+      expect(mockTableManagerInstance.insertWithAutoSchema.mock.calls[0]?.[1]).toBe('tracks')
+      expect(mockTableManagerInstance.insertWithAutoSchema.mock.calls[1]?.[1]).toBe('product_purchased')
+    })
+
+    it('does not create an event-specific row when the canonical tracks write fails', async () => {
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: true })
+      const MockedTableManager = vi.mocked(TableManager)
+      const mockTableManagerInstance = MockedTableManager.mock.instances[0] as unknown as {
+        insertWithAutoSchema: ReturnType<typeof vi.fn>
+      }
+      mockTableManagerInstance.insertWithAutoSchema.mockRejectedValueOnce(new Error('tracks unavailable'))
+
+      await expect(integration.track(createTrackPayload())).rejects.toThrow('tracks unavailable')
+
+      expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(1)
+      expect(mockTableManagerInstance.insertWithAutoSchema.mock.calls[0]?.[1]).toBe('tracks')
     })
   })
 
@@ -91,6 +105,7 @@ describe('BigQueryIntegration', () => {
       expect(mockTable).toHaveBeenCalledWith('tracks')
       expect(mockTable).toHaveBeenCalledWith('product_purchased')
       expect(mockInsert).toHaveBeenCalledTimes(2)
+      expect(mockTable.mock.calls.map(([tableId]) => tableId)).toEqual(['tracks', 'product_purchased'])
     })
 
     it('should fail gracefully if direct insertion fails', async () => {
@@ -100,6 +115,8 @@ describe('BigQueryIntegration', () => {
       const payload = createTrackPayload()
 
       await expect(integration.track(payload)).rejects.toThrow('Schema mismatch')
+      expect(mockTable).toHaveBeenCalledTimes(1)
+      expect(mockTable).toHaveBeenCalledWith('tracks')
     })
   })
 
@@ -134,24 +151,59 @@ describe('BigQueryIntegration', () => {
   })
 
   describe('privacy erasure', () => {
-    function createTable(id: string, type: string, columns: string[]) {
+    function createTable(
+      id: string,
+      type: string,
+      columns: Array<string | { name: string; type?: string; mode?: string }>
+    ) {
       return {
         id,
         getMetadata: vi.fn().mockResolvedValue([
           {
             type,
-            schema: { fields: columns.map((name) => ({ name })) },
+            schema: {
+              fields: columns.map((column) =>
+                typeof column === 'string' ? { name: column, type: 'STRING', mode: 'NULLABLE' } : column
+              ),
+            },
           },
         ]),
       }
     }
 
-    it('enumerates every physical identity-bearing table while skipping views', async () => {
+    const canonicalTableIds = ['aliases', 'groups', 'identifies', 'pages', 'tracks']
+
+    function getQuery(callIndex: number): string {
+      return (mockQuery.mock.calls[callIndex]?.[0] as { query: string }).query
+    }
+
+    function expectNoCanonicalDeletes(query: string): void {
+      for (const tableId of canonicalTableIds) {
+        expect(query).not.toContain(`DELETE FROM \`test-project.test_dataset.${tableId}\``)
+      }
+    }
+
+    function expectEveryCanonicalDelete(query: string): void {
+      for (const tableId of canonicalTableIds) {
+        expect(query).toContain(`DELETE FROM \`test-project.test_dataset.${tableId}\``)
+      }
+    }
+
+    function createCanonicalTables() {
+      return [
+        createTable('tracks', 'TABLE', ['user_id', 'anonymous_id']),
+        createTable('identifies', 'TABLE', ['user_id', 'anonymous_id']),
+        createTable('pages', 'TABLE', ['user_id', 'anonymous_id']),
+        createTable('groups', 'TABLE', ['user_id', 'anonymous_id']),
+        createTable('aliases', 'TABLE', ['user_id', 'previous_id']),
+      ]
+    }
+
+    it('deletes event-specific tables first and every canonical retry anchor only in the final transaction', async () => {
       mockGetTables.mockResolvedValue([
         [
-          createTable('tracks', 'TABLE', ['user_id', 'anonymous_id']),
+          ...createCanonicalTables(),
           createTable('product_purchased', 'TABLE', ['user_id']),
-          createTable('aliases', 'TABLE', ['user_id', 'previous_id']),
           createTable('analytics_view', 'VIEW', ['user_id']),
           createTable('unrelated', 'TABLE', ['event']),
         ],
@@ -160,43 +212,130 @@ describe('BigQueryIntegration', () => {
 
       const result = await integration.eraseUser('subject-123')
 
-      expect(result).toEqual({ status: 'erased', remainingRows: 0, pendingTableCount: 0 })
+      expect(result).toEqual({ status: 'erased' })
       expect(mockGetTables).toHaveBeenCalledWith({ autoPaginate: true })
-      expect(mockQuery).toHaveBeenCalledTimes(6)
+      expect(mockQuery).toHaveBeenCalledTimes(2)
 
-      const queries = mockQuery.mock.calls.map(
-        ([options]) => options as { query: string; params: Record<string, unknown> }
-      )
-      expect(queries.every(({ params }) => params.userId === 'subject-123')).toBe(true)
-      expect(queries.every(({ query }) => !query.includes('subject-123'))).toBe(true)
-      expect(queries.some(({ query }) => query.includes('analytics_view'))).toBe(false)
-      expect(queries.some(({ query }) => query.includes('product_purchased'))).toBe(true)
-      expect(queries.some(({ query }) => query.includes('previous_id = @userId'))).toBe(true)
+      const [firstOptions] = mockQuery.mock.calls[0] as [
+        { query: string; params: Record<string, unknown>; types: Record<string, unknown> },
+      ]
+      expect(firstOptions.params).toEqual({ userId: 'subject-123' })
+      expect(firstOptions.types).toEqual({ userId: 'STRING' })
+      expect(firstOptions.query).not.toContain('subject-123')
+      expect(firstOptions.query).not.toContain('analytics_view')
+      expect(firstOptions.query).toContain('DELETE FROM `test-project.test_dataset.product_purchased`')
+      expect(firstOptions.query).toContain('SELECT anonymous_id')
+      expect(firstOptions.query).not.toContain('SELECT previous_id')
+      expect(firstOptions.query).not.toContain('user_id IN UNNEST')
+      expect(firstOptions.query).not.toContain('previous_id IN UNNEST')
+      expectNoCanonicalDeletes(firstOptions.query)
+
+      const finalQuery = getQuery(1)
+      expectEveryCanonicalDelete(finalQuery)
+      expect(finalQuery).not.toContain('DELETE FROM `test-project.test_dataset.product_purchased`')
     })
 
-    it('returns pending when insertAll rows are still in the streaming buffer', async () => {
-      mockGetTables.mockResolvedValue([[createTable('tracks', 'TABLE', ['user_id'])]])
-      mockQuery.mockImplementation(({ query }: { query: string }) => {
-        if (query.startsWith('DELETE')) {
-          return Promise.reject(new Error('DELETE would affect rows in the streaming buffer'))
-        }
-        return Promise.resolve([[{ count: 1 }]])
-      })
+    it('keeps canonical links when an event-specific batch is blocked by the streaming buffer', async () => {
+      mockGetTables.mockResolvedValue([
+        [...createCanonicalTables(), createTable('product_purchased', 'TABLE', ['user_id', 'anonymous_id'])],
+      ])
+      mockQuery.mockRejectedValue(new Error('DELETE would affect rows in the streaming buffer'))
       const integration = new BigQueryIntegration(defaultConfig)
 
-      await expect(integration.eraseUser('subject-123')).resolves.toEqual({
-        status: 'pending',
-        remainingRows: 1,
-        pendingTableCount: 1,
-      })
+      await expect(integration.eraseUser('subject-123')).resolves.toEqual({ status: 'pending' })
+      expect(mockQuery).toHaveBeenCalledTimes(1)
+      expect(getQuery(0)).toContain('DELETE FROM `test-project.test_dataset.product_purchased`')
+      expect(getQuery(0)).toContain('ROLLBACK TRANSACTION;')
+      expectNoCanonicalDeletes(getQuery(0))
     })
 
-    it('propagates non-streaming deletion errors', async () => {
-      mockGetTables.mockResolvedValue([[createTable('tracks', 'TABLE', ['user_id'])]])
+    it('batches more than 100 event tables and retains every canonical table through a pending retry', async () => {
+      const eventTables = Array.from({ length: 101 }, (_, index) =>
+        createTable(`event_${index.toString().padStart(3, '0')}`, 'TABLE', ['user_id', 'anonymous_id'])
+      )
+      mockGetTables.mockResolvedValue([[...createCanonicalTables(), ...eventTables]])
+      mockQuery
+        .mockResolvedValueOnce([[]])
+        .mockRejectedValueOnce(new Error('DELETE would affect rows in the streaming buffer'))
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).resolves.toEqual({ status: 'pending' })
+      expect(mockQuery).toHaveBeenCalledTimes(2)
+      expectNoCanonicalDeletes(getQuery(0))
+      expectNoCanonicalDeletes(getQuery(1))
+
+      await expect(integration.eraseUser('subject-123')).resolves.toEqual({ status: 'erased' })
+      expect(mockQuery).toHaveBeenCalledTimes(5)
+
+      expectNoCanonicalDeletes(getQuery(2))
+      expectNoCanonicalDeletes(getQuery(3))
+      expectEveryCanonicalDelete(getQuery(4))
+      expect((getQuery(2).match(/DELETE FROM/g) ?? []).length).toBe(100)
+      expect((getQuery(3).match(/DELETE FROM/g) ?? []).length).toBe(1)
+      expect((getQuery(4).match(/DELETE FROM/g) ?? []).length).toBe(5)
+    })
+
+    it('builds and validates every batch before the first mutation', async () => {
+      const safeEventTables = Array.from({ length: 100 }, (_, index) =>
+        createTable(`event_${index.toString().padStart(3, '0')}`, 'TABLE', ['user_id'])
+      )
+      mockGetTables.mockResolvedValue([
+        [...createCanonicalTables(), ...safeEventTables, createTable('unsafe`; DELETE', 'TABLE', ['user_id'])],
+      ])
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).rejects.toThrow('Invalid BigQuery dataset or table identifier')
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('propagates non-streaming deletion errors without deleting canonical links', async () => {
+      mockGetTables.mockResolvedValue([
+        [...createCanonicalTables(), createTable('product_purchased', 'TABLE', ['user_id', 'anonymous_id'])],
+      ])
       mockQuery.mockRejectedValueOnce(new Error('permission denied'))
       const integration = new BigQueryIntegration(defaultConfig)
 
       await expect(integration.eraseUser('subject-123')).rejects.toThrow('permission denied')
+      expect(mockQuery).toHaveBeenCalledTimes(1)
+      expectNoCanonicalDeletes(getQuery(0))
+    })
+
+    it.each([
+      [{ name: 'user_id', type: 'INT64', mode: 'NULLABLE' }, 'must have type STRING'],
+      [{ name: 'anonymous_id', type: 'STRING', mode: 'REPEATED' }, 'must not be repeated'],
+    ])('fails closed for an invalid identity schema', async (column, message) => {
+      mockGetTables.mockResolvedValue([[createTable('tracks', 'TABLE', [column])]])
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).rejects.toThrow(message)
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('fails closed for malformed physical-table metadata', async () => {
+      mockGetTables.mockResolvedValue([
+        [
+          {
+            id: 'tracks',
+            getMetadata: vi.fn().mockResolvedValue([{ type: 'TABLE', schema: {} }]),
+          },
+        ],
+      ])
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).rejects.toThrow(
+        'BigQuery table tracks returned invalid schema metadata'
+      )
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('skips views and returns erased without a mutation when no physical table bears identities', async () => {
+      mockGetTables.mockResolvedValue([
+        [createTable('analytics_view', 'VIEW', [{ name: 'user_id' }]), createTable('events', 'TABLE', ['event'])],
+      ])
+      const integration = new BigQueryIntegration(defaultConfig)
+
+      await expect(integration.eraseUser('subject-123')).resolves.toEqual({ status: 'erased' })
+      expect(mockQuery).not.toHaveBeenCalled()
     })
   })
 })

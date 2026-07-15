@@ -38,8 +38,8 @@ export class IntegrationManager {
     this.logger?.info(
       {
         type: cleanPayload.type,
-        userId: 'userId' in cleanPayload ? cleanPayload.userId : undefined,
-        anonymousId: 'anonymousId' in cleanPayload ? cleanPayload.anonymousId : undefined,
+        hasUserId: 'userId' in cleanPayload && cleanPayload.userId !== undefined,
+        hasAnonymousId: 'anonymousId' in cleanPayload && cleanPayload.anonymousId !== undefined,
         timestamp: cleanPayload.timestamp,
       },
       'Processing event'
