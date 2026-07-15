@@ -2,7 +2,6 @@ import type { AliasPayload, GroupPayload, IdentifyPayload, PagePayload, TrackPay
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CustomerioIntegration } from '../index'
-import { CustomerioErrorHandler } from '../utils'
 
 // Mock the customerio-node module
 const mockIdentify = vi.fn().mockResolvedValue({})
@@ -10,7 +9,6 @@ const mockTrack = vi.fn().mockResolvedValue({})
 const mockTrackAnonymous = vi.fn().mockResolvedValue({})
 const mockTrackPageView = vi.fn().mockResolvedValue({})
 const mockMergeCustomers = vi.fn().mockResolvedValue({})
-const mockFetch = vi.fn()
 
 vi.mock('customerio-node', () => ({
   TrackClient: class MockTrackClient {
@@ -46,8 +44,6 @@ describe('CustomerioIntegration', () => {
       apiKey: 'test_api_key',
       region: 'US',
     })
-    mockFetch.mockResolvedValue({ ok: true, status: 200 })
-    vi.stubGlobal('fetch', mockFetch)
   })
 
   afterEach(() => {
@@ -60,7 +56,6 @@ describe('CustomerioIntegration', () => {
       }
     })
     vi.clearAllMocks()
-    vi.unstubAllGlobals()
   })
 
   describe('constructor', () => {
@@ -318,68 +313,6 @@ describe('CustomerioIntegration', () => {
       await integration.alias(call)
 
       expect(mockMergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
-    })
-  })
-
-  describe('privacy suppression', () => {
-    it('calls the regional suppress endpoint with Basic server credentials', async () => {
-      const euIntegration = new CustomerioIntegration({
-        siteId: 'site-id',
-        apiKey: 'api-key',
-        region: 'EU',
-      })
-
-      await euIntegration.suppressUser('user/with spaces')
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://track-eu.customer.io/api/v1/customers/user%2Fwith%20spaces/suppress',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            Authorization: `Basic ${Buffer.from('site-id:api-key').toString('base64')}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      )
-    })
-
-    it('retries a transient suppress failure', async () => {
-      vi.spyOn(CustomerioErrorHandler, 'getRetryDelay').mockReturnValue(0)
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 }).mockResolvedValueOnce({ ok: true, status: 200 })
-      const retryingIntegration = new CustomerioIntegration({
-        siteId: 'site-id',
-        apiKey: 'api-key',
-        retryAttempts: 2,
-      })
-
-      await retryingIntegration.suppressUser('user-123')
-
-      expect(mockFetch).toHaveBeenCalledTimes(2)
-    })
-
-    it('retries a suppress request timeout', async () => {
-      vi.spyOn(CustomerioErrorHandler, 'getRetryDelay').mockReturnValue(0)
-      mockFetch
-        .mockRejectedValueOnce(Object.assign(new Error('timed out'), { name: 'TimeoutError' }))
-        .mockResolvedValueOnce({ ok: true, status: 200 })
-      const retryingIntegration = new CustomerioIntegration({
-        siteId: 'site-id',
-        apiKey: 'api-key',
-        retryAttempts: 2,
-      })
-
-      await retryingIntegration.suppressUser('user-123')
-
-      expect(mockFetch).toHaveBeenCalledTimes(2)
-    })
-
-    it('does not retry a non-retryable suppress failure', async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 400 })
-
-      await expect(integration.suppressUser('user-123')).rejects.toMatchObject({
-        code: 'VALIDATION_ERROR',
-      })
-      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
   })
 

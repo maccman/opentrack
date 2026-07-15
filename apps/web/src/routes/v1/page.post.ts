@@ -1,7 +1,8 @@
 import { pageEventSchema, type PagePayload } from '@app/spec'
+import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-import { queueIngest } from '@/utils/queue-ingest'
+import { integrationManager } from '@/integrations'
 
 /**
  * POST /v1/page
@@ -78,7 +79,7 @@ export default defineEventHandler(async (event) => {
     return { error: 'Invalid payload', details: validation.error.issues }
   }
 
-  await queueIngest(event, validation.data)
+  waitUntil(integrationManager.process(validation.data))
 
   return { success: true }
 })

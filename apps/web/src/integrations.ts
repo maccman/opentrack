@@ -6,10 +6,6 @@ import { CustomerioIntegration, type CustomerioConfig } from '@integrations/cust
 import { WebhookIntegration, type WebhookIntegrationConfig } from '@integrations/webhook'
 import pino from 'pino'
 
-import { PrivacyErasureService } from '@/privacy/erasure-service'
-import { getSuppressionIdentifiers } from '@/privacy/suppression-identifiers'
-import { createSuppressionLedgerFromEnvironment } from '@/privacy/suppression-ledger'
-
 // =============================================================================
 // SHARED UTILITIES
 // =============================================================================
@@ -61,7 +57,7 @@ function parseJsonCredentials(jsonString: string): object {
  *
  * @returns BigQuery integration instance or null if required variables are missing
  */
-function createBigQueryIntegration(): BigQueryIntegration | null {
+function createBigQueryIntegration(): Integration | null {
   const projectId = getOptionalEnvVar('BIGQUERY_PROJECT_ID')
   const datasetId = getOptionalEnvVar('BIGQUERY_DATASET')
 
@@ -105,7 +101,7 @@ const EU_REGION = 'EU' as const
  *
  * @returns Customer.io integration instance or null if required variables are missing
  */
-function createCustomerioIntegration(): CustomerioIntegration | null {
+function createCustomerioIntegration(): Integration | null {
   const siteId = getOptionalEnvVar('CUSTOMERIO_SITE_ID')
   const apiKey = getOptionalEnvVar('CUSTOMERIO_API_KEY')
 
@@ -140,7 +136,7 @@ const DEFAULT_HTTP_METHOD = 'POST' as const
  *
  * @returns Webhook integration instance or null if required variables are missing
  */
-function createWebhookIntegration(): WebhookIntegration | null {
+function createWebhookIntegration(): Integration | null {
   const url = getOptionalEnvVar('WEBHOOK_URL')
 
   if (!url) {
@@ -169,9 +165,10 @@ function createWebhookIntegration(): WebhookIntegration | null {
  */
 function createIntegrations(): Integration[] {
   const integrationFactories = [createBigQueryIntegration, createCustomerioIntegration, createWebhookIntegration]
-  const integrations: Array<Integration | null> = integrationFactories.map((factory) => factory())
 
-  return integrations.filter((integration): integration is Integration => integration !== null)
+  return integrationFactories
+    .map((factory) => factory())
+    .filter((integration): integration is Integration => integration !== null)
 }
 
 /**
@@ -217,39 +214,4 @@ function createLoggerConfig(): LoggerConfig | undefined {
  * This is the primary export that should be used throughout the application
  * to access integration functionality.
  */
-const configuredIntegrations = createIntegrations()
-const suppressionLedger = createSuppressionLedgerFromEnvironment()
-export const suppressionEnforcementEnabled = getOptionalEnvVar('OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED') === 'true'
-const bigQueryIntegration = configuredIntegrations.find(
-  (integration): integration is BigQueryIntegration => integration instanceof BigQueryIntegration
-)
-const customerioIntegration = configuredIntegrations.find(
-  (integration): integration is CustomerioIntegration => integration instanceof CustomerioIntegration
-)
-const webhookIntegration = configuredIntegrations.find(
-  (integration): integration is WebhookIntegration => integration instanceof WebhookIntegration
-)
-const bigQueryOnlyRoutingEnabled = Boolean(getOptionalEnvVar('BIGQUERY_ONLY_WRITE_KEY')?.trim())
-
-if (bigQueryOnlyRoutingEnabled && !bigQueryIntegration) {
-  throw new Error('BigQuery integration is required when product-only routing is enabled')
-}
-
-export const privacyErasureService = new PrivacyErasureService({
-  ledger: suppressionLedger,
-  bigQuery: bigQueryIntegration,
-  customerIo: customerioIntegration,
-  webhookConfigured: Boolean(webhookIntegration),
-})
-
-export const integrationManager = new IntegrationManager(
-  configuredIntegrations,
-  createLoggerConfig(),
-  suppressionEnforcementEnabled
-    ? {
-        async isSuppressed(payload) {
-          return await suppressionLedger.isAnySuppressed(getSuppressionIdentifiers(payload))
-        },
-      }
-    : undefined
-)
+export const integrationManager = new IntegrationManager(createIntegrations(), createLoggerConfig())

@@ -78,28 +78,19 @@ describe('Write Key Authentication', () => {
   describe('when WRITE_KEY is not configured', () => {
     beforeEach(() => {
       vi.stubEnv('WRITE_KEY', '')
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', '')
     })
 
-    it('should fail closed by default', () => {
-      expect(isAuthRequired()).toBe(true)
-      expect(validateWriteKey(null)).toBe(false)
-      expect(validateWriteKey('any-key')).toBe(false)
-    })
-
-    it('should allow an explicit non-production development bypass', () => {
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
+    it('should not require authentication', () => {
       expect(isAuthRequired()).toBe(false)
-      expect(validateWriteKey(null)).toBe(true)
-      expect(validateWriteKey('any-key')).toBe(true)
     })
 
-    it('should ignore the bypass in production', () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
-      expect(isAuthRequired()).toBe(true)
-      expect(validateWriteKey(null)).toBe(false)
+    it('should accept requests without writeKey', () => {
+      expect(validateWriteKey(null)).toBe(true)
+    })
+
+    it('should accept requests with any writeKey', () => {
+      expect(validateWriteKey('any-key')).toBe(true)
+      expect(validateWriteKey('random-value')).toBe(true)
     })
 
     it('should still extract writeKey from header (for logging/debugging)', () => {

@@ -7,16 +7,6 @@ import { flattenObject } from './object-flattener'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
-const RESERVED_IDENTITY_COLUMNS = new Set(['user_id', 'anonymous_id', 'previous_id'])
-
-function addFlattenedFields(row: Record<string, unknown>, fields: Record<string, unknown>): void {
-  for (const [key, value] of Object.entries(fields)) {
-    if (!RESERVED_IDENTITY_COLUMNS.has(key)) {
-      row[key] = value
-    }
-  }
-}
-
 /**
  * Utility functions for transforming Segment payloads into BigQuery rows
  */
@@ -81,14 +71,14 @@ function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): 
 
       if (payload.properties) {
         const flattenedProps = flattenObject(payload.properties)
-        addFlattenedFields(row, flattenedProps)
+        Object.assign(row, flattenedProps)
       }
       break
 
     case 'identify':
       if (payload.traits) {
         const flattenedTraits = flattenObject(payload.traits)
-        addFlattenedFields(row, flattenedTraits)
+        Object.assign(row, flattenedTraits)
       }
       break
 
@@ -99,7 +89,7 @@ function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): 
 
       if (payload.properties) {
         const flattenedProps = flattenObject(payload.properties)
-        addFlattenedFields(row, flattenedProps)
+        Object.assign(row, flattenedProps)
       }
       break
 
@@ -108,7 +98,7 @@ function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): 
 
       if (payload.traits) {
         const flattenedTraits = flattenObject(payload.traits)
-        addFlattenedFields(row, flattenedTraits)
+        Object.assign(row, flattenedTraits)
       }
       break
 
@@ -129,9 +119,9 @@ function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): 
 export function transformToRow(payload: Payload): Record<string, unknown> {
   const row = createBaseRow(payload)
 
+  addUserIdentifiers(row, payload)
   addContextFields(row, payload)
   addTypeSpecificFields(row, payload)
-  addUserIdentifiers(row, payload)
 
   return row
 }

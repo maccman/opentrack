@@ -1,8 +1,9 @@
 import type { AliasPayload } from '@app/spec'
 import { aliasEventSchema } from '@app/spec'
+import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-import { queueIngest } from '@/utils/queue-ingest'
+import { integrationManager } from '@/integrations'
 
 /**
  * POST /v1/alias
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
     return { error: 'Invalid payload', details: validation.error.issues }
   }
 
-  await queueIngest(event, validation.data)
+  waitUntil(integrationManager.process(validation.data))
 
   return { success: true }
 })

@@ -201,22 +201,6 @@ describe('transformToRow', () => {
       expect(row.product_specs_color).toBe('Black')
       expect(row.tags).toBe('["electronics","mobile"]')
     })
-
-    it('should prevent dynamic properties from overwriting canonical identifiers', () => {
-      const payload = createTrackPayload({
-        properties: {
-          userId: 'forged-user',
-          anonymousId: 'forged-anonymous',
-          previousId: 'forged-previous',
-        },
-      })
-
-      const row = transformToRow(payload)
-
-      expect(row.user_id).toBe('user123')
-      expect(row.anonymous_id).toBe('anon123')
-      expect(row.previous_id).toBeUndefined()
-    })
   })
 
   describe('identify events', () => {
