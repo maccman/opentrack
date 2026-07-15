@@ -4,6 +4,10 @@ import { TrackClient } from 'customerio-node'
 
 import { CustomerioErrorHandler, CustomerioTransformer, RegionManager, type CustomerioRegion } from './utils'
 
+function hasStatusCode(error: unknown, statusCode: number): boolean {
+  return Boolean(error && typeof error === 'object' && 'statusCode' in error && error.statusCode === statusCode)
+}
+
 export interface CustomerioConfig {
   siteId: string
   apiKey: string
@@ -188,6 +192,24 @@ export class CustomerioIntegration implements Integration {
           transformed.secondaryId
         )
       )
+    } catch (error) {
+      throw CustomerioErrorHandler.mapError(error)
+    }
+  }
+
+  /** Deletes the person currently held by Customer.io without suppressing future re-creation. */
+  async eraseUser(userId: string): Promise<void> {
+    try {
+      await this.executeWithRetry(async () => {
+        try {
+          await this.client.destroy(userId)
+        } catch (error) {
+          if (hasStatusCode(error, 404)) {
+            return
+          }
+          throw error
+        }
+      })
     } catch (error) {
       throw CustomerioErrorHandler.mapError(error)
     }
