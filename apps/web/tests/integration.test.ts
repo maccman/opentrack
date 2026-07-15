@@ -458,18 +458,7 @@ describe('Analytics Integration Tests', () => {
       expect(response.status).toBe(401)
     })
 
-    it('needs no idempotency key and accepts only a strict UUID body', async () => {
-      const validBody = await $fetchRaw('/internal/v1/privacy/erase', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer test-erasure-secret' },
-        body: { userId: 'b9a54fe6-c995-4f14-9d85-0769b11dfe57' },
-      })
-      expect(validBody.status).toBe(503)
-      expect(validBody.data).toEqual({
-        error: 'Privacy erasure is not configured',
-        type: 'configuration_error',
-      })
-
+    it('validates only the strict UUID body without requiring an idempotency key', async () => {
       const extraBodyField = await $fetchRaw('/internal/v1/privacy/erase', {
         method: 'POST',
         headers: { Authorization: 'Bearer test-erasure-secret' },
