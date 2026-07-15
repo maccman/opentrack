@@ -1,4 +1,5 @@
 export * from './integration'
+export * from './privacy'
 export * from './validation/alias'
 export * from './validation/group'
 export * from './validation/identify'

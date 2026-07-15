@@ -13,4 +13,21 @@ export interface IntegrationResult {
   success: boolean
   error?: Error
   duration: number
+  /** The event matched a durable privacy suppression before fan-out. */
+  suppressed?: boolean
+  /** The suppression store could not be checked, so delivery failed closed. */
+  blocked?: boolean
+}
+
+/** Privacy boundary evaluated once before any destination receives an event. */
+export interface SuppressionGuard {
+  isSuppressed(payload: IntegrationPayload): Promise<boolean>
+}
+
+/** Per-request delivery policy resolved from the authenticated source key. */
+export interface IntegrationProcessOptions {
+  /** Integration `name` values allowed to receive this payload. */
+  allowedIntegrationNames?: readonly string[]
+  /** Used only after a synchronous suppression preflight has succeeded. */
+  skipSuppressionCheck?: boolean
 }

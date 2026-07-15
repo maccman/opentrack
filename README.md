@@ -81,19 +81,20 @@ graph TD
     subgraph "Vercel Serverless Function"
         A --> B{Nitro API Endpoint}
         B --> C["Parse & Validate Payload"]
-        C --> D["Return 200 OK"]
-        C --> E["Process Event Async"]
+        C --> D["Privacy Suppression Preflight"]
+        D --> E["Return 200 OK"]
+        D --> F["Process Event Async"]
     end
 
     subgraph "Async Processing"
-        E --> F{Integration Manager}
-        F --> G[BigQuery Integration]
-        F --> H[Customer.io Integration]
+        F --> G{Integration Manager}
+        G --> H[BigQuery Integration]
+        G --> I[Customer.io Integration]
     end
 
     subgraph "Downstream Services"
-        G --> J[(Google BigQuery)]
-        H --> K[(Customer.io API)]
+        H --> J[(Google BigQuery)]
+        I --> K[(Customer.io API)]
     end
 ```
 
@@ -158,9 +159,59 @@ Follow these steps to set up and run your own instance of OpenTrack.
     BIGQUERY_DATASET=your_bigquery_dataset_name
     # Optional: Set to 'false' to manage BigQuery schema manually
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
+
+    # Required analytics ingest authentication
+    WRITE_KEY=generate-a-long-random-server-secret
+    # Optional product source key; events authenticated with it can reach BigQuery only
+    BIGQUERY_ONLY_WRITE_KEY=generate-a-separate-public-source-key
+
+    # Required privacy erasure authentication and durable suppression
+    OPENTRACK_ERASURE_SECRET=generate-a-separate-long-random-server-secret
+    OPENTRACK_SUPPRESSION_HASH_SECRET=generate-and-retain-a-stable-hmac-secret
+    UPSTASH_REDIS_REST_URL=https://your-database.upstash.io
+    UPSTASH_REDIS_REST_TOKEN=your-server-only-standard-token
+    # Enable only after all suppression variables are provisioned and tested
+    OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED=true
     ```
 
     You will also need to set up Google Cloud authentication. Refer to the instructions in the [Google BigQuery integration README](./integrations/bigquery/README.md).
+
+    `WRITE_KEY` fails closed when absent or empty. Local/test environments can explicitly set
+    `OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST=true`; production always ignores that bypass.
+
+    `BIGQUERY_ONLY_WRITE_KEY` is intended for browser-safe product analytics. OpenTrack resolves
+    its destination policy on the server, so payloads authenticated with this key cannot opt into
+    Customer.io or webhook delivery. Keep it distinct from `WRITE_KEY`. BigQuery credentials are
+    required whenever this source key is configured; ingestion fails closed if that destination is
+    unavailable.
+
+### Privacy erasure
+
+The server-only endpoint `POST /internal/v1/privacy/erase` requires both
+`Authorization: Bearer $OPENTRACK_ERASURE_SECRET` and a UUID `Idempotency-Key`. Its strict JSON body is
+`{"userId":"<UUID>"}`. It durably suppresses the identifier before deleting destination data. A `202`
+response is not completion: retry after the response's `Retry-After` interval until the endpoint returns `200`.
+
+Production prerequisites:
+
+- Set `OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED=true` only after the Redis URL, token, and stable
+  HMAC secret are present. Until enforcement is enabled, ingestion continues but privacy erasure
+  returns `503`; once enabled, every ingest request checks suppression before returning success and
+  also returns `503` if the ledger is unavailable. Deployments using `BIGQUERY_ONLY_WRITE_KEY` must
+  retain that key and the BigQuery configuration so historical erasure cannot lose its destination.
+
+- Use an Upstash/Vercel Redis **Standard server token**, not a read-only token. Suppression and idempotency keys
+  are intentionally non-expiring. Keep `OPENTRACK_SUPPRESSION_HASH_SECRET` stable; rotating or losing it makes
+  existing HMAC-keyed tombstones undiscoverable.
+- Grant the BigQuery service account permission to list/get dataset tables, create query jobs, delete table data,
+  and read table data for verification. BigQuery `insertAll` rows require the built-in 35-minute delayed retry.
+  A `200` verifies absence from active tables; Google-managed time-travel and fail-safe retention expires on
+  BigQuery's own schedule.
+- Configure Customer.io Site ID/API key server-side; each erasure retry suppresses the profile again before
+  completion.
+- Do not configure the generic `WEBHOOK_URL` destination until it has a contractual erase operation. Its
+  presence deliberately blocks erasure completion.
+- Keep `OPENTRACK_ERASURE_SECRET` distinct from both ingest keys; analytics keys never authorize erasure.
 
 ## Usage
 

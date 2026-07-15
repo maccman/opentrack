@@ -32,14 +32,17 @@ OpenTrack provides five core tracking methods plus a batch endpoint:
 | Alias    | `/v1/alias`    | Merge user identities across sessions    |
 | Batch    | `/v1/batch`    | Send multiple events in a single request |
 
+Batch requests are limited to 100 events so a public browser source key cannot amplify one request into unbounded privacy-ledger or destination work.
+
 ## Authentication
 
-Currently, OpenTrack routes do not require authentication (unlike Segment's write key requirement). This makes it suitable for self-hosted deployments where access is controlled at the infrastructure level.
+OpenTrack requires a configured source write key. Send it either with Segment-style Basic authentication or in the validated `writeKey` body field. `WRITE_KEY` may reach every configured integration; `BIGQUERY_ONLY_WRITE_KEY` is restricted to BigQuery by the server. Missing key configuration fails closed outside the explicit non-production bypass.
 
 ```bash
-# No Authorization header required
+# The Basic username is the source write key; the password is empty.
 curl -X POST https://your-opentrack-deployment.vercel.app/v1/track \
   -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(printf '%s' 'YOUR_WRITE_KEY:' | base64)" \
   -d '{"userId": "user123", "event": "Button Clicked"}'
 ```
 
@@ -77,6 +80,8 @@ Validation errors return detailed error information:
 ```
 
 **HTTP Status:** `400 Bad Request`
+
+Authentication failures return `401`. Missing server authentication or destination configuration, and an unavailable enforced suppression ledger, return retryable `503` responses.
 
 ## Error Handling
 
@@ -443,12 +448,12 @@ All routes use Zod schemas for robust payload validation:
 
 ## Integration Processing
 
-All routes use asynchronous processing via Vercel's `waitUntil` function:
+All routes pass through a synchronous privacy preflight before using Vercel's `waitUntil` for delivery. Once `OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED=true`, that preflight uses the durable ledger:
 
-1. **Immediate Response**: Routes return success immediately after validation
-2. **Async Processing**: Events are processed by `IntegrationManager` in the background
-3. **Integration Fanout**: Events are sent to all enabled integrations (BigQuery, Customer.io, etc.)
-4. **Error Resilience**: Integration failures don't affect the API response
+1. **Synchronous Privacy Boundary**: Suppression is checked before an event is acknowledged; a configured ledger outage returns `503`
+2. **Async Processing**: Unsuppressed events are processed by `IntegrationManager` in the background
+3. **Server-Enforced Routing**: The authenticated source key determines whether events reach all configured integrations or BigQuery only
+4. **Error Resilience**: Downstream integration failures after acceptance don't affect the API response
 
 ```typescript
 // Simplified processing flow
@@ -457,7 +462,7 @@ if (!validation.success) {
   return { error: 'Invalid payload', details: validation.error.issues }
 }
 
-waitUntil(integrationManager.process(validation.data))
+await queueIngest(event, validation.data)
 return { success: true }
 ```
 

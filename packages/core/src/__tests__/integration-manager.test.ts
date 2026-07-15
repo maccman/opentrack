@@ -195,6 +195,13 @@ describe('IntegrationManager', () => {
 
       expect(manager).toBeInstanceOf(IntegrationManager)
     })
+
+    it('reports whether a named destination is configured', () => {
+      const manager = new IntegrationManager([new MockSuccessfulIntegration()])
+
+      expect(manager.hasIntegration('MockSuccessful')).toBe(true)
+      expect(manager.hasIntegration('BigQuery')).toBe(false)
+    })
   })
 
   describe('process', () => {
@@ -286,6 +293,22 @@ describe('IntegrationManager', () => {
         expect(results.every((r) => r.success)).toBe(true)
         expect(results.map((r) => r.integrationName)).toEqual(['MockSuccessfulIntegration', 'MockSlowIntegration'])
       })
+
+      it('should enforce a server-provided integration allowlist', async () => {
+        const allowed = new MockSuccessfulIntegration()
+        const blocked = new MockSlowIntegration()
+        const allowedTrack = vi.spyOn(allowed, 'track')
+        const blockedTrack = vi.spyOn(blocked, 'track')
+        const manager = new IntegrationManager([allowed, blocked])
+
+        const results = await manager.process(createTrackPayload(), {
+          allowedIntegrationNames: ['MockSuccessful'],
+        })
+
+        expect(results).toHaveLength(1)
+        expect(allowedTrack).toHaveBeenCalledOnce()
+        expect(blockedTrack).not.toHaveBeenCalled()
+      })
     })
 
     describe('error handling', () => {
@@ -375,8 +398,6 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: 'user123',
-            anonymousId: 'anon123',
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -497,8 +518,6 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'track',
-            userId: undefined,
-            anonymousId: 'anon123',
             timestamp: payload.timestamp,
           },
           'Processing event'
@@ -524,12 +543,70 @@ describe('IntegrationManager', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(
           {
             type: 'identify',
-            userId: 'user123',
-            anonymousId: undefined,
             timestamp: payload.timestamp,
           },
           'Processing event'
         )
+      })
+
+      it('should suppress before any integration fan-out', async () => {
+        const integration = new MockSuccessfulIntegration()
+        const track = vi.spyOn(integration, 'track')
+        const manager = new IntegrationManager([integration], undefined, {
+          isSuppressed: vi.fn().mockResolvedValue(true),
+        })
+
+        const results = await manager.process(createTrackPayload())
+
+        expect(track).not.toHaveBeenCalled()
+        expect(results).toEqual([
+          {
+            integrationName: 'MockSuccessfulIntegration',
+            success: true,
+            duration: 0,
+            suppressed: true,
+          },
+        ])
+      })
+
+      it('should fail closed before fan-out when the suppression datastore errors', async () => {
+        const integration = new MockSuccessfulIntegration()
+        const track = vi.spyOn(integration, 'track')
+        const manager = new IntegrationManager([integration], undefined, {
+          isSuppressed: vi.fn().mockRejectedValue(new Error('redis unavailable')),
+        })
+
+        const results = await manager.process(createTrackPayload())
+
+        expect(track).not.toHaveBeenCalled()
+        expect(results[0]).toMatchObject({
+          integrationName: 'MockSuccessfulIntegration',
+          success: false,
+          duration: 0,
+          blocked: true,
+        })
+        expect(results[0].error?.message).toBe('Privacy suppression check failed closed')
+      })
+
+      it('should expose suppression failures for synchronous ingestion preflight', async () => {
+        const manager = new IntegrationManager([new MockSuccessfulIntegration()], undefined, {
+          isSuppressed: vi.fn().mockRejectedValue(new Error('redis unavailable')),
+        })
+
+        await expect(manager.isSuppressed(createTrackPayload())).rejects.toThrow('redis unavailable')
+      })
+
+      it('should skip a duplicate suppression lookup after successful preflight', async () => {
+        const isSuppressed = vi.fn().mockResolvedValue(false)
+        const manager = new IntegrationManager([new MockSuccessfulIntegration()], undefined, {
+          isSuppressed,
+        })
+        const payload = createTrackPayload()
+
+        expect(await manager.isSuppressed(payload)).toBe(false)
+        await manager.process(payload, { skipSuppressionCheck: true })
+
+        expect(isSuppressed).toHaveBeenCalledOnce()
       })
     })
   })

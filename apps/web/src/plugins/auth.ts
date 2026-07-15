@@ -7,25 +7,30 @@
  * 2. writeKey field in request body (accepted by Zod schemas)
  *
  * Environment Variables:
- * - WRITE_KEY: The expected write key value. If not set, authentication is disabled.
+ * - WRITE_KEY: Default source key for all configured destinations.
+ * - BIGQUERY_ONLY_WRITE_KEY: Product source key restricted to BigQuery.
+ * - OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST: Explicit non-production bypass.
  *
  * When authentication is required:
  * - If writeKey is valid: request proceeds
  * - If writeKey is invalid/missing: returns 401 Unauthorized
  *
- * When authentication is not required (WRITE_KEY not set):
- * - All requests proceed without authentication
+ * Unauthenticated local/test requests require an explicit bypass and are never allowed in production.
  */
 
 import { readBody, send, setResponseHeader, setResponseStatus } from 'h3'
 
 import {
+  createAuthConfigurationErrorResponse,
   createUnauthorizedResponse,
   extractWriteKeyFromBody,
   extractWriteKeyFromHeader,
+  getWriteKeyRouting,
+  hasConfiguredWriteKey,
   isAuthRequired,
   validateWriteKey,
 } from '@/utils/auth'
+import { setWriteKeyRouting } from '@/utils/ingest-routing'
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('request', async (event) => {
@@ -43,6 +48,12 @@ export default defineNitroPlugin((nitroApp) => {
     // If auth is not required, allow all requests
     if (!isAuthRequired()) {
       return
+    }
+
+    if (!hasConfiguredWriteKey()) {
+      setResponseStatus(event, 503)
+      setResponseHeader(event, 'Content-Type', 'application/json')
+      return await send(event, JSON.stringify(createAuthConfigurationErrorResponse()))
     }
 
     // Try to extract writeKey from Authorization header first
@@ -64,6 +75,11 @@ export default defineNitroPlugin((nitroApp) => {
       setResponseStatus(event, 401)
       setResponseHeader(event, 'Content-Type', 'application/json')
       return await send(event, JSON.stringify(createUnauthorizedResponse()))
+    }
+
+    const routing = getWriteKeyRouting(writeKey)
+    if (routing) {
+      setWriteKeyRouting(event, routing)
     }
   })
 })

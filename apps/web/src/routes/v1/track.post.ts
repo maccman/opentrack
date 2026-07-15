@@ -1,8 +1,7 @@
 import { trackEventSchema, type TrackPayload } from '@app/spec'
-import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-import { integrationManager } from '@/integrations'
+import { queueIngest } from '@/utils/queue-ingest'
 
 /**
  * POST /v1/track
@@ -82,7 +81,7 @@ export default defineEventHandler(async (event) => {
     return { error: 'Invalid payload', details: validation.error.issues }
   }
 
-  waitUntil(integrationManager.process(validation.data))
+  await queueIngest(event, validation.data)
 
   return { success: true }
 })

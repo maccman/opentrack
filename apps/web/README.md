@@ -14,6 +14,13 @@ The API includes built-in CORS (Cross-Origin Resource Sharing) support optimized
 | ---------------------- | --------------------------------------- | ----------------- | --------------------------------------------------- |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins | `*` (all origins) | `https://app.example.com,https://admin.example.com` |
 
+Ingest authentication and privacy routing use these server variables:
+
+- `WRITE_KEY`: default source key for all configured integrations.
+- `BIGQUERY_ONLY_WRITE_KEY`: optional product source key restricted to the BigQuery integration.
+- `OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED`: set to `true` only after the durable suppression
+  ledger is provisioned; privacy erasure remains unavailable until then.
+
 ### Fixed Configuration
 
 The following CORS settings are optimized for analytics and cannot be changed:
