@@ -1,5 +1,3 @@
-import { Buffer } from 'node:buffer'
-
 import type { AliasPayload, GroupPayload, IdentifyPayload, Integration, PagePayload, TrackPayload } from '@app/spec'
 import { assertString } from '@app/utils'
 import { TrackClient } from 'customerio-node'
@@ -190,33 +188,6 @@ export class CustomerioIntegration implements Integration {
           transformed.secondaryId
         )
       )
-    } catch (error) {
-      throw CustomerioErrorHandler.mapError(error)
-    }
-  }
-
-  /** Deletes the customer profile and permanently suppresses future re-creation. */
-  async suppressUser(userId: string): Promise<void> {
-    try {
-      await this.executeWithRetry(async () => {
-        const response = await fetch(
-          `${this.regionManager.getApiUrl()}/api/v1/customers/${encodeURIComponent(userId)}/suppress`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Basic ${Buffer.from(`${this.config.siteId}:${this.config.apiKey}`).toString('base64')}`,
-              'Content-Type': 'application/json',
-            },
-            signal: AbortSignal.timeout(this.config.timeout!),
-          }
-        )
-
-        if (!response.ok) {
-          throw Object.assign(new Error('Customer.io suppression request failed'), {
-            statusCode: response.status,
-          })
-        }
-      })
     } catch (error) {
       throw CustomerioErrorHandler.mapError(error)
     }

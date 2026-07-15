@@ -88,14 +88,6 @@ describe('CustomerioErrorHandler', () => {
       expect(mapped.code).toBe('TIMEOUT_ERROR')
     })
 
-    it('should map fetch abort and timeout errors', () => {
-      for (const name of ['AbortError', 'TimeoutError']) {
-        const mapped = CustomerioErrorHandler.mapError(Object.assign(new Error('aborted'), { name }))
-        expect(mapped.name).toBe('TimeoutError')
-        expect(mapped.code).toBe('TIMEOUT_ERROR')
-      }
-    })
-
     it('should map unknown errors', () => {
       const error = {
         message: 'Something went wrong',

@@ -5,59 +5,23 @@
  * Supports both Authorization header (Basic auth) and writeKey in request body.
  *
  * Environment Variables:
- * - WRITE_KEY: The default source key, routed to every configured integration.
- * - BIGQUERY_ONLY_WRITE_KEY: Optional public product-analytics key restricted to BigQuery.
- * - OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST: Explicit local/test-only bypass.
+ * - WRITE_KEY: The expected write key value. If not set, authentication is disabled.
  */
 
 /**
  * Get the configured write key from environment
- * Returns null if not configured.
+ * Returns null if not configured (auth disabled)
  */
 export function getConfiguredWriteKey(): string | null {
-  const writeKey = process.env.WRITE_KEY?.trim()
-  return writeKey || null
-}
-
-/** Return the optional source key whose events may only reach BigQuery. */
-export function getConfiguredBigQueryOnlyWriteKey(): string | null {
-  const writeKey = process.env.BIGQUERY_ONLY_WRITE_KEY?.trim()
-  return writeKey || null
-}
-
-export type WriteKeyRouting = 'all' | 'bigquery-only'
-
-/** Resolve an authenticated source key to its server-enforced destination policy. */
-export function getWriteKeyRouting(writeKey: string | null): WriteKeyRouting | null {
-  if (!writeKey) {
-    return null
-  }
-
-  // Prefer the restrictive policy if deployment configuration accidentally
-  // gives both sources the same value.
-  if (writeKey === getConfiguredBigQueryOnlyWriteKey()) {
-    return 'bigquery-only'
-  }
-  if (writeKey === getConfiguredWriteKey()) {
-    return 'all'
-  }
-  return null
-}
-
-export function hasConfiguredWriteKey(): boolean {
-  return getConfiguredWriteKey() !== null || getConfiguredBigQueryOnlyWriteKey() !== null
+  return process.env.WRITE_KEY || null
 }
 
 /**
- * The unauthenticated bypass is explicit and is never honored in production.
+ * Check if authentication is required
+ * Auth is required only if WRITE_KEY env var is set
  */
-export function isUnauthenticatedIngestAllowed(): boolean {
-  return process.env.NODE_ENV !== 'production' && process.env.OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST === 'true'
-}
-
-/** Authentication is the default in every environment. */
 export function isAuthRequired(): boolean {
-  return hasConfiguredWriteKey() || !isUnauthenticatedIngestAllowed()
+  return getConfiguredWriteKey() !== null
 }
 
 /**
@@ -101,12 +65,15 @@ export function extractWriteKeyFromBody(body: unknown): string | null {
  * Validate writeKey against configured value
  */
 export function validateWriteKey(writeKey: string | null): boolean {
-  // Missing configuration is accepted only by the explicit non-production bypass.
-  if (!hasConfiguredWriteKey()) {
-    return isUnauthenticatedIngestAllowed()
+  const configuredKey = getConfiguredWriteKey()
+
+  // If no key is configured, auth is disabled - allow all
+  if (configuredKey === null) {
+    return true
   }
 
-  return getWriteKeyRouting(writeKey) !== null
+  // If key is configured, require a valid match
+  return writeKey === configuredKey
 }
 
 /**
@@ -116,12 +83,5 @@ export function createUnauthorizedResponse(): { error: string; type: string } {
   return {
     error: 'Invalid write key',
     type: 'authentication_error',
-  }
-}
-
-export function createAuthConfigurationErrorResponse(): { error: string; type: string } {
-  return {
-    error: 'Analytics ingestion is not configured',
-    type: 'configuration_error',
   }
 }

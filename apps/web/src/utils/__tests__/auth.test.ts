@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  createAuthConfigurationErrorResponse,
   createUnauthorizedResponse,
   extractWriteKeyFromBody,
   extractWriteKeyFromHeader,
-  getConfiguredBigQueryOnlyWriteKey,
   getConfiguredWriteKey,
-  getWriteKeyRouting,
-  hasConfiguredWriteKey,
   isAuthRequired,
   validateWriteKey,
 } from '../auth'
@@ -30,49 +26,14 @@ describe('Auth Utilities', () => {
     })
   })
 
-  describe('source-specific routing', () => {
-    it('recognizes a separately configured BigQuery-only source key', () => {
-      vi.stubEnv('WRITE_KEY', 'default-key')
-      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'product-key')
-
-      expect(getConfiguredBigQueryOnlyWriteKey()).toBe('product-key')
-      expect(hasConfiguredWriteKey()).toBe(true)
-      expect(getWriteKeyRouting('default-key')).toBe('all')
-      expect(getWriteKeyRouting('product-key')).toBe('bigquery-only')
-      expect(getWriteKeyRouting('unknown')).toBeNull()
-      expect(validateWriteKey('product-key')).toBe(true)
-    })
-
-    it('uses the restrictive policy if both source keys are equal', () => {
-      vi.stubEnv('WRITE_KEY', 'same-key')
-      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'same-key')
-
-      expect(getWriteKeyRouting('same-key')).toBe('bigquery-only')
-    })
-  })
-
   describe('isAuthRequired', () => {
-    it('should return true when WRITE_KEY is not set', () => {
+    it('should return false when WRITE_KEY is not set', () => {
       vi.stubEnv('WRITE_KEY', '')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', '')
-      expect(isAuthRequired()).toBe(true)
+      expect(isAuthRequired()).toBe(false)
     })
 
     it('should return true when WRITE_KEY is set', () => {
       vi.stubEnv('WRITE_KEY', 'test-key-123')
-      expect(isAuthRequired()).toBe(true)
-    })
-
-    it('should return true when only BIGQUERY_ONLY_WRITE_KEY is set', () => {
-      vi.stubEnv('WRITE_KEY', '')
-      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'product-key')
-      expect(isAuthRequired()).toBe(true)
-    })
-
-    it('should not bypass a configured key', () => {
-      vi.stubEnv('WRITE_KEY', 'test-key-123')
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
       expect(isAuthRequired()).toBe(true)
     })
   })
@@ -157,21 +118,10 @@ describe('Auth Utilities', () => {
   })
 
   describe('validateWriteKey', () => {
-    it('should fail closed when no WRITE_KEY is configured', () => {
+    it('should return true when auth is not required (no WRITE_KEY configured)', () => {
       vi.stubEnv('WRITE_KEY', '')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', '')
-      expect(validateWriteKey(null)).toBe(false)
-      expect(validateWriteKey('any-key')).toBe(false)
-    })
-
-    it('should permit only an explicit non-production bypass', () => {
-      vi.stubEnv('WRITE_KEY', '')
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST', 'true')
       expect(validateWriteKey(null)).toBe(true)
-
-      vi.stubEnv('NODE_ENV', 'production')
-      expect(validateWriteKey(null)).toBe(false)
+      expect(validateWriteKey('any-key')).toBe(true)
     })
 
     it('should return false when auth is required but writeKey is null', () => {
@@ -196,13 +146,6 @@ describe('Auth Utilities', () => {
       expect(response).toEqual({
         error: 'Invalid write key',
         type: 'authentication_error',
-      })
-    })
-
-    it('should return a sanitized configuration error', () => {
-      expect(createAuthConfigurationErrorResponse()).toEqual({
-        error: 'Analytics ingestion is not configured',
-        type: 'configuration_error',
       })
     })
   })

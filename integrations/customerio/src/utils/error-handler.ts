@@ -10,19 +10,6 @@ function isCustomerioError(error: unknown): error is CustomerioError {
 
 export class CustomerioErrorHandler {
   static mapError(error: unknown): CustomerioError {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'name' in error &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError')
-    ) {
-      return {
-        name: 'TimeoutError',
-        message: 'Request timeout. Customer.io took too long to respond.',
-        code: 'TIMEOUT_ERROR',
-      }
-    }
-
     // Type guard for objects with potential HTTP error properties
     if (isCustomerioError(error)) {
       if (error.statusCode) {
