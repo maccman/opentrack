@@ -219,6 +219,7 @@ function createLoggerConfig(): LoggerConfig | undefined {
  */
 const configuredIntegrations = createIntegrations()
 const suppressionLedger = createSuppressionLedgerFromEnvironment()
+export const suppressionEnforcementEnabled = getOptionalEnvVar('OPENTRACK_SUPPRESSION_ENFORCEMENT_ENABLED') === 'true'
 const bigQueryIntegration = configuredIntegrations.find(
   (integration): integration is BigQueryIntegration => integration instanceof BigQueryIntegration
 )
@@ -228,6 +229,11 @@ const customerioIntegration = configuredIntegrations.find(
 const webhookIntegration = configuredIntegrations.find(
   (integration): integration is WebhookIntegration => integration instanceof WebhookIntegration
 )
+const bigQueryOnlyRoutingEnabled = Boolean(getOptionalEnvVar('BIGQUERY_ONLY_WRITE_KEY')?.trim())
+
+if (bigQueryOnlyRoutingEnabled && !bigQueryIntegration) {
+  throw new Error('BigQuery integration is required when product-only routing is enabled')
+}
 
 export const privacyErasureService = new PrivacyErasureService({
   ledger: suppressionLedger,
@@ -236,8 +242,14 @@ export const privacyErasureService = new PrivacyErasureService({
   webhookConfigured: Boolean(webhookIntegration),
 })
 
-export const integrationManager = new IntegrationManager(configuredIntegrations, createLoggerConfig(), {
-  async isSuppressed(payload) {
-    return await suppressionLedger.isAnySuppressed(getSuppressionIdentifiers(payload))
-  },
-})
+export const integrationManager = new IntegrationManager(
+  configuredIntegrations,
+  createLoggerConfig(),
+  suppressionEnforcementEnabled
+    ? {
+        async isSuppressed(payload) {
+          return await suppressionLedger.isAnySuppressed(getSuppressionIdentifiers(payload))
+        },
+      }
+    : undefined
+)

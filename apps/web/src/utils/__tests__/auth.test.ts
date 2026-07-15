@@ -5,7 +5,10 @@ import {
   createUnauthorizedResponse,
   extractWriteKeyFromBody,
   extractWriteKeyFromHeader,
+  getConfiguredBigQueryOnlyWriteKey,
   getConfiguredWriteKey,
+  getWriteKeyRouting,
+  hasConfiguredWriteKey,
   isAuthRequired,
   validateWriteKey,
 } from '../auth'
@@ -27,6 +30,27 @@ describe('Auth Utilities', () => {
     })
   })
 
+  describe('source-specific routing', () => {
+    it('recognizes a separately configured BigQuery-only source key', () => {
+      vi.stubEnv('WRITE_KEY', 'default-key')
+      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'product-key')
+
+      expect(getConfiguredBigQueryOnlyWriteKey()).toBe('product-key')
+      expect(hasConfiguredWriteKey()).toBe(true)
+      expect(getWriteKeyRouting('default-key')).toBe('all')
+      expect(getWriteKeyRouting('product-key')).toBe('bigquery-only')
+      expect(getWriteKeyRouting('unknown')).toBeNull()
+      expect(validateWriteKey('product-key')).toBe(true)
+    })
+
+    it('uses the restrictive policy if both source keys are equal', () => {
+      vi.stubEnv('WRITE_KEY', 'same-key')
+      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'same-key')
+
+      expect(getWriteKeyRouting('same-key')).toBe('bigquery-only')
+    })
+  })
+
   describe('isAuthRequired', () => {
     it('should return true when WRITE_KEY is not set', () => {
       vi.stubEnv('WRITE_KEY', '')
@@ -36,6 +60,12 @@ describe('Auth Utilities', () => {
 
     it('should return true when WRITE_KEY is set', () => {
       vi.stubEnv('WRITE_KEY', 'test-key-123')
+      expect(isAuthRequired()).toBe(true)
+    })
+
+    it('should return true when only BIGQUERY_ONLY_WRITE_KEY is set', () => {
+      vi.stubEnv('WRITE_KEY', '')
+      vi.stubEnv('BIGQUERY_ONLY_WRITE_KEY', 'product-key')
       expect(isAuthRequired()).toBe(true)
     })
 

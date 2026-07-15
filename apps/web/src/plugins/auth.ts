@@ -7,7 +7,8 @@
  * 2. writeKey field in request body (accepted by Zod schemas)
  *
  * Environment Variables:
- * - WRITE_KEY: The expected write key value. Missing/empty configuration fails closed.
+ * - WRITE_KEY: Default source key for all configured destinations.
+ * - BIGQUERY_ONLY_WRITE_KEY: Product source key restricted to BigQuery.
  * - OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST: Explicit non-production bypass.
  *
  * When authentication is required:
@@ -24,10 +25,12 @@ import {
   createUnauthorizedResponse,
   extractWriteKeyFromBody,
   extractWriteKeyFromHeader,
-  getConfiguredWriteKey,
+  getWriteKeyRouting,
+  hasConfiguredWriteKey,
   isAuthRequired,
   validateWriteKey,
 } from '@/utils/auth'
+import { setWriteKeyRouting } from '@/utils/ingest-routing'
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('request', async (event) => {
@@ -47,7 +50,7 @@ export default defineNitroPlugin((nitroApp) => {
       return
     }
 
-    if (!getConfiguredWriteKey()) {
+    if (!hasConfiguredWriteKey()) {
       setResponseStatus(event, 503)
       setResponseHeader(event, 'Content-Type', 'application/json')
       return await send(event, JSON.stringify(createAuthConfigurationErrorResponse()))
@@ -72,6 +75,11 @@ export default defineNitroPlugin((nitroApp) => {
       setResponseStatus(event, 401)
       setResponseHeader(event, 'Content-Type', 'application/json')
       return await send(event, JSON.stringify(createUnauthorizedResponse()))
+    }
+
+    const routing = getWriteKeyRouting(writeKey)
+    if (routing) {
+      setWriteKeyRouting(event, routing)
     }
   })
 })

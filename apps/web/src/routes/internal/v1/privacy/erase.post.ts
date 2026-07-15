@@ -1,7 +1,7 @@
 import { privacyEraseIdempotencyKeySchema, privacyEraseRequestSchema } from '@app/spec'
 import { defineEventHandler, readBody } from 'h3'
 
-import { privacyErasureService } from '@/integrations'
+import { privacyErasureService, suppressionEnforcementEnabled } from '@/integrations'
 import { SuppressionIdempotencyConflictError, SuppressionLedgerConfigurationError } from '@/privacy/suppression-ledger'
 import { validatePrivacyAuthorization } from '@/utils/privacy-auth'
 
@@ -20,7 +20,6 @@ export default defineEventHandler(async (event) => {
     event.node.res.setHeader('WWW-Authenticate', 'Bearer')
     return { error: 'Unauthorized', type: 'authentication_error' }
   }
-
   const idempotencyValidation = privacyEraseIdempotencyKeySchema.safeParse(event.node.req.headers['idempotency-key'])
   if (!idempotencyValidation.success) {
     event.node.res.statusCode = 400
@@ -45,6 +44,10 @@ export default defineEventHandler(async (event) => {
   if (!bodyValidation.success) {
     event.node.res.statusCode = 400
     return { error: 'Invalid request body', type: 'validation_error' }
+  }
+  if (!suppressionEnforcementEnabled) {
+    event.node.res.statusCode = 503
+    return configurationError()
   }
 
   try {

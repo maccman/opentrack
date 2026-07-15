@@ -4,7 +4,7 @@ This document outlines the architecture and implementation plan for OpenTrack, a
 
 ### 1. High-Level Architecture
 
-The system will be built around Vercel Functions (using Nitro), which will handle incoming API requests. The core principle is to provide an immediate response to the client and then process the event asynchronously using Vercel's `waitUntil` feature. This ensures that the client-facing API is extremely fast and resilient to failures in downstream integrations.
+The system is built around Vercel Functions (using Nitro), which authenticate and validate incoming API requests. It synchronously verifies the privacy-suppression boundary, then processes accepted events asynchronously using Vercel's `waitUntil` feature. This keeps downstream delivery off the client response path without acknowledging an event when its privacy state cannot be verified.
 
 Here’s a diagram of the proposed architecture:
 
@@ -16,21 +16,22 @@ graph TD
 
     subgraph "Vercel Serverless Function"
         A --> B{Nitro API Endpoint};
-        B --> C[1. Parse & Validate Payload<br/>(using Zod)];
-        C --> D[2. Immediately Return 200 OK];
-        C --> E[3. Call `waitUntil` with Event];
+        B --> C[1. Authenticate, Parse & Validate Payload<br/>(using Zod)];
+        C --> D[2. Check Privacy Suppression];
+        D --> E[3. Return 200 OK];
+        D --> F[4. Call `waitUntil` with Event];
     end
 
     subgraph "Async Processing (via waitUntil)"
-        E --> F{Integration Manager};
-        F --> G[BigQuery Integration];
-        F --> H[Customer.io Integration];
-        F --> I[...Future Integrations];
+        F --> G{Source-Authorized Integration Manager};
+        G --> H[BigQuery Integration];
+        G --> I[Customer.io Integration];
+        G --> J[...Future Integrations];
     end
 
     subgraph "Downstream Services"
-        G --> J[(Google BigQuery)];
-        H --> K[(Customer.io API)];
+        H --> K[(Google BigQuery)];
+        I --> L[(Customer.io API)];
     end
 ```
 
@@ -76,7 +77,7 @@ graph TD
     - A singleton manager, composed of `BaseIntegrationManager` and a concrete `IntegrationManager`, handles all available integrations.
     - **Registry**: It maintains a list of all integration classes (e.g., `[BigQueryIntegration, CustomerIOIntegration]`).
     - **Initialization**: On startup, it filters the registry to only enabled integrations (by calling `isEnabled()`) and initializes them.
-    - **Event Processing**: It has a central `process` method that takes an event and fans it out to all enabled integrations.
+    - **Event Processing**: Its central `process` method fans an event out only to enabled integrations allowed by the authenticated source policy.
 
     ```typescript
     // packages/core/src/integrations/base-manager.ts
@@ -105,12 +106,10 @@ Here’s how the `track.post.ts` handler works, serving as a template for all ot
 
 ```typescript
 // apps/web/src/routes/v1/track.post.ts
-import { IntegrationManager } from '@app/core'
 import { trackEventSchema, type TrackPayload } from '@app/spec'
-import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-const integrationManager = new IntegrationManager()
+import { queueIngest } from '@/utils/queue-ingest'
 
 export default defineEventHandler(async (event) => {
   // 1. Read and validate body
@@ -123,10 +122,10 @@ export default defineEventHandler(async (event) => {
     return { error: 'Invalid payload', details: validation.error.issues }
   }
 
-  // 2. Offload processing to `waitUntil`
-  waitUntil(integrationManager.process(validation.data))
+  // 2. Enforce suppression synchronously, then queue source-authorized delivery
+  await queueIngest(event, validation.data)
 
-  // 3. Return immediate success response
+  // 3. Return success after the synchronous privacy boundary passes
   return { success: true }
 })
 ```

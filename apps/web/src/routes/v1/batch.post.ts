@@ -1,8 +1,8 @@
+import type { IntegrationPayload } from '@app/core'
 import { aliasEventSchema, groupEventSchema, identifyEventSchema, pageEventSchema, trackEventSchema } from '@app/spec'
-import { waitUntil } from '@vercel/functions'
 import { defineEventHandler, readBody } from 'h3'
 
-import { integrationManager } from '@/integrations'
+import { queueIngestBatch } from '@/utils/queue-ingest'
 
 /**
  * Payload structure for batch requests containing multiple events
@@ -16,6 +16,8 @@ interface BatchPayload {
     [key: string]: unknown
   }>
 }
+
+const MAX_BATCH_EVENTS = 100
 
 /**
  * POST /v1/batch
@@ -111,9 +113,16 @@ export default defineEventHandler(async (event) => {
     event.node.res.statusCode = 400
     return { error: 'Invalid payload: batch array is required' }
   }
+  if (body.batch.length > MAX_BATCH_EVENTS) {
+    event.node.res.statusCode = 413
+    return {
+      error: `Batch exceeds the maximum of ${MAX_BATCH_EVENTS} events`,
+    }
+  }
 
   const processedEvents = []
   const errors = []
+  const validEvents: IntegrationPayload[] = []
 
   for (const item of body.batch) {
     try {
@@ -149,9 +158,7 @@ export default defineEventHandler(async (event) => {
         continue
       }
 
-      // Process the validated event
-      waitUntil(integrationManager.process(validation.data))
-      processedEvents.push({ type: item.type, status: 'processed' })
+      validEvents.push(validation.data)
     } catch (error) {
       errors.push({
         error: 'Processing failed',
@@ -159,6 +166,16 @@ export default defineEventHandler(async (event) => {
         type: item.type,
       })
     }
+  }
+
+  // Preflight every valid event before queueing any of them. A ledger outage
+  // therefore returns a retryable 503 without partially accepting the batch.
+  const deliveryResults = await queueIngestBatch(event, validEvents)
+  for (const [index, validEvent] of validEvents.entries()) {
+    processedEvents.push({
+      type: validEvent.type,
+      status: deliveryResults[index] === 'suppressed' ? 'suppressed' : 'processed',
+    })
   }
 
   // Return success if at least some events were processed

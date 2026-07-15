@@ -23,3 +23,11 @@ export interface IntegrationResult {
 export interface SuppressionGuard {
   isSuppressed(payload: IntegrationPayload): Promise<boolean>
 }
+
+/** Per-request delivery policy resolved from the authenticated source key. */
+export interface IntegrationProcessOptions {
+  /** Integration `name` values allowed to receive this payload. */
+  allowedIntegrationNames?: readonly string[]
+  /** Used only after a synchronous suppression preflight has succeeded. */
+  skipSuppressionCheck?: boolean
+}

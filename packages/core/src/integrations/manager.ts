@@ -2,7 +2,13 @@ import type { Integration } from '@app/spec'
 import type { Logger } from 'pino'
 import pino from 'pino'
 
-import type { IntegrationPayload, IntegrationResult, LoggerConfig, SuppressionGuard } from './types'
+import type {
+  IntegrationPayload,
+  IntegrationProcessOptions,
+  IntegrationResult,
+  LoggerConfig,
+  SuppressionGuard,
+} from './types'
 
 export class IntegrationManager {
   protected integrations: Integration[] = []
@@ -31,17 +37,40 @@ export class IntegrationManager {
     )
   }
 
-  public async process(payload: IntegrationPayload): Promise<IntegrationResult[]> {
+  /** Check the durable suppression boundary and propagate datastore failures. */
+  public async isSuppressed(payload: IntegrationPayload): Promise<boolean> {
+    if (!this.suppressionGuard) {
+      return false
+    }
+
+    const { writeKey: _, ...cleanPayload } = payload as IntegrationPayload & { writeKey?: string }
+    return await this.suppressionGuard.isSuppressed(cleanPayload as IntegrationPayload)
+  }
+
+  /** Return whether a configured destination is available for source routing. */
+  public hasIntegration(name: string): boolean {
+    return this.integrations.some((integration) => integration.name === name)
+  }
+
+  public async process(
+    payload: IntegrationPayload,
+    options: IntegrationProcessOptions = {}
+  ): Promise<IntegrationResult[]> {
     const startTime = Date.now()
 
     // Strip writeKey before processing - it's for authentication only, not for integrations
     const { writeKey: _, ...cleanPayload } = payload as IntegrationPayload & { writeKey?: string }
 
-    if (this.suppressionGuard) {
+    const allowedIntegrationNames = options.allowedIntegrationNames ? new Set(options.allowedIntegrationNames) : null
+    const targetIntegrations = allowedIntegrationNames
+      ? this.integrations.filter((integration) => allowedIntegrationNames.has(integration.name))
+      : this.integrations
+
+    if (this.suppressionGuard && !options.skipSuppressionCheck) {
       try {
         if (await this.suppressionGuard.isSuppressed(cleanPayload)) {
           this.logger?.info({ type: cleanPayload.type }, 'Event suppressed by privacy ledger')
-          return this.integrations.map((integration) => ({
+          return targetIntegrations.map((integration) => ({
             integrationName: integration.constructor.name,
             success: true,
             duration: 0,
@@ -50,7 +79,7 @@ export class IntegrationManager {
         }
       } catch {
         this.logger?.error({ type: cleanPayload.type }, 'Privacy suppression check failed; event blocked')
-        return this.integrations.map((integration) => ({
+        return targetIntegrations.map((integration) => ({
           integrationName: integration.constructor.name,
           success: false,
           duration: 0,
@@ -68,7 +97,7 @@ export class IntegrationManager {
       'Processing event'
     )
 
-    const promises = this.integrations.map(async (integration): Promise<IntegrationResult> => {
+    const promises = targetIntegrations.map(async (integration): Promise<IntegrationResult> => {
       const integrationName = integration.constructor.name
       const integrationStartTime = Date.now()
 

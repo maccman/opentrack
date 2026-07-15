@@ -369,6 +369,25 @@ describe('Analytics Integration Tests', () => {
       expect(response.data).toHaveProperty('processed', 2)
     })
 
+    it('should reject oversized batches before privacy preflight fan-out', async () => {
+      const response = await $fetchRaw('/v1/batch', {
+        method: 'POST',
+        body: {
+          writeKey: VALID_WRITE_KEY,
+          batch: Array.from({ length: 101 }, (_, index) => ({
+            type: 'track',
+            userId: 'batch-user-1',
+            event: `Batch Event ${index}`,
+          })),
+        },
+      })
+
+      expect(response.status).toBe(413)
+      expect(response.data).toEqual({
+        error: 'Batch exceeds the maximum of 100 events',
+      })
+    })
+
     it('should reject requests without writeKey when auth is enabled', async () => {
       const response = await $fetchRaw('/v1/track', {
         method: 'POST',

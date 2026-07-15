@@ -5,7 +5,8 @@
  * Supports both Authorization header (Basic auth) and writeKey in request body.
  *
  * Environment Variables:
- * - WRITE_KEY: The expected write key value. Missing/empty configuration fails closed.
+ * - WRITE_KEY: The default source key, routed to every configured integration.
+ * - BIGQUERY_ONLY_WRITE_KEY: Optional public product-analytics key restricted to BigQuery.
  * - OPENTRACK_ALLOW_UNAUTHENTICATED_INGEST: Explicit local/test-only bypass.
  */
 
@@ -18,6 +19,35 @@ export function getConfiguredWriteKey(): string | null {
   return writeKey || null
 }
 
+/** Return the optional source key whose events may only reach BigQuery. */
+export function getConfiguredBigQueryOnlyWriteKey(): string | null {
+  const writeKey = process.env.BIGQUERY_ONLY_WRITE_KEY?.trim()
+  return writeKey || null
+}
+
+export type WriteKeyRouting = 'all' | 'bigquery-only'
+
+/** Resolve an authenticated source key to its server-enforced destination policy. */
+export function getWriteKeyRouting(writeKey: string | null): WriteKeyRouting | null {
+  if (!writeKey) {
+    return null
+  }
+
+  // Prefer the restrictive policy if deployment configuration accidentally
+  // gives both sources the same value.
+  if (writeKey === getConfiguredBigQueryOnlyWriteKey()) {
+    return 'bigquery-only'
+  }
+  if (writeKey === getConfiguredWriteKey()) {
+    return 'all'
+  }
+  return null
+}
+
+export function hasConfiguredWriteKey(): boolean {
+  return getConfiguredWriteKey() !== null || getConfiguredBigQueryOnlyWriteKey() !== null
+}
+
 /**
  * The unauthenticated bypass is explicit and is never honored in production.
  */
@@ -27,7 +57,7 @@ export function isUnauthenticatedIngestAllowed(): boolean {
 
 /** Authentication is the default in every environment. */
 export function isAuthRequired(): boolean {
-  return getConfiguredWriteKey() !== null || !isUnauthenticatedIngestAllowed()
+  return hasConfiguredWriteKey() || !isUnauthenticatedIngestAllowed()
 }
 
 /**
@@ -71,15 +101,12 @@ export function extractWriteKeyFromBody(body: unknown): string | null {
  * Validate writeKey against configured value
  */
 export function validateWriteKey(writeKey: string | null): boolean {
-  const configuredKey = getConfiguredWriteKey()
-
   // Missing configuration is accepted only by the explicit non-production bypass.
-  if (configuredKey === null) {
+  if (!hasConfiguredWriteKey()) {
     return isUnauthenticatedIngestAllowed()
   }
 
-  // If key is configured, require a valid match
-  return writeKey === configuredKey
+  return getWriteKeyRouting(writeKey) !== null
 }
 
 /**
