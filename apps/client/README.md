@@ -216,6 +216,47 @@ import analytics from 'opentrack-analytics/server'
 const analytics = process.browser ? await import('opentrack-analytics') : await import('opentrack-analytics/server')
 ```
 
+#### User Deletion (Server-Only Admin Client)
+
+`opentrack-analytics/admin` wraps OpenTrack's privacy regulations endpoint
+(`POST /internal/v1/regulations`, modeled on Segment's Deletion and Suppression API) for GDPR/CCPA
+user deletion. It authenticates with the deployment's server-only `OPENTRACK_SECRET`, so it is
+**Node.js (18+) only** — the `./admin` export cannot be resolved in browser builds, and calling it
+from a browser throws. Never expose the secret to client code.
+
+```typescript
+import { createRegulation, RegulationRequestError } from 'opentrack-analytics/admin'
+
+const result = await createRegulation({
+  host: 'https://your-opentrack-instance.com',
+  secret: process.env.OPENTRACK_SECRET!,
+  subjectIds: ['user_12345'], // 1-100 ids, the same ids you send to track/identify
+})
+
+switch (result.status) {
+  case 'FINISHED':
+    // Every deletion-capable destination deleted the users' current data.
+    break
+  case 'RUNNING':
+    // BigQuery rows are still in the streaming buffer. Deletion is idempotent:
+    // re-issue the same call after result.retryAfterSeconds.
+    break
+  case 'FAILED':
+  case 'PARTIAL_SUCCESS':
+    // One or more destinations failed — retry. result.destinations says which.
+    break
+  case 'NOT_SUPPORTED':
+    // No configured destination supports deletion.
+    break
+}
+```
+
+Well-formed outcomes (including failures) are returned as results — branch on `result.status` and
+inspect `result.destinations` for per-destination detail. Rejected requests (wrong secret, invalid
+input, misconfigured deployment) throw a `RegulationRequestError` with the HTTP `status` and a
+machine-readable `code`. Deletion is point-in-time and stateless: stop sending the users' events
+before regulating, and expect later events to recreate them.
+
 #### Direct Browser Usage (Script Tag)
 
 ```html
