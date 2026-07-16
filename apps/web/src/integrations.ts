@@ -6,6 +6,8 @@ import { CustomerioIntegration, type CustomerioConfig } from '@integrations/cust
 import { WebhookIntegration, type WebhookIntegrationConfig } from '@integrations/webhook'
 import pino from 'pino'
 
+import { RegulationService } from '@/privacy/regulation-service'
+
 // =============================================================================
 // SHARED UTILITIES
 // =============================================================================
@@ -57,7 +59,7 @@ function parseJsonCredentials(jsonString: string): object {
  *
  * @returns BigQuery integration instance or null if required variables are missing
  */
-function createBigQueryIntegration(): Integration | null {
+function createBigQueryIntegration(): BigQueryIntegration | null {
   const projectId = getOptionalEnvVar('BIGQUERY_PROJECT_ID')
   const datasetId = getOptionalEnvVar('BIGQUERY_DATASET')
 
@@ -101,7 +103,7 @@ const EU_REGION = 'EU' as const
  *
  * @returns Customer.io integration instance or null if required variables are missing
  */
-function createCustomerioIntegration(): Integration | null {
+function createCustomerioIntegration(): CustomerioIntegration | null {
   const siteId = getOptionalEnvVar('CUSTOMERIO_SITE_ID')
   const apiKey = getOptionalEnvVar('CUSTOMERIO_API_KEY')
 
@@ -136,7 +138,7 @@ const DEFAULT_HTTP_METHOD = 'POST' as const
  *
  * @returns Webhook integration instance or null if required variables are missing
  */
-function createWebhookIntegration(): Integration | null {
+function createWebhookIntegration(): WebhookIntegration | null {
   const url = getOptionalEnvVar('WEBHOOK_URL')
 
   if (!url) {
@@ -156,19 +158,17 @@ function createWebhookIntegration(): Integration | null {
 // =============================================================================
 
 /**
- * Creates and returns all available integrations based on environment configuration
+ * Creates each destination by name based on environment configuration.
  *
- * This function attempts to create each integration type and filters out any
- * that couldn't be created due to missing required environment variables.
- *
- * @returns Array of successfully configured integration instances
+ * Destinations stay named so privacy regulations can report, per destination,
+ * whether user deletion is supported.
  */
-function createIntegrations(): Integration[] {
-  const integrationFactories = [createBigQueryIntegration, createCustomerioIntegration, createWebhookIntegration]
-
-  return integrationFactories
-    .map((factory) => factory())
-    .filter((integration): integration is Integration => integration !== null)
+function createConfiguredDestinations() {
+  return {
+    bigquery: createBigQueryIntegration(),
+    customerio: createCustomerioIntegration(),
+    webhook: createWebhookIntegration(),
+  }
 }
 
 /**
@@ -214,4 +214,25 @@ function createLoggerConfig(): LoggerConfig | undefined {
  * This is the primary export that should be used throughout the application
  * to access integration functionality.
  */
-export const integrationManager = new IntegrationManager(createIntegrations(), createLoggerConfig())
+const configuredDestinations = createConfiguredDestinations()
+const configuredIntegrations: Integration[] = Object.values(configuredDestinations).flatMap((integration) =>
+  integration === null ? [] : [integration]
+)
+
+export const integrationManager = new IntegrationManager(configuredIntegrations, createLoggerConfig())
+
+/**
+ * Regulation service for POST /internal/v1/regulations.
+ *
+ * Destinations able to delete users execute regulations; configured
+ * destinations that cannot (the generic webhook) are reported per request as
+ * NOT_SUPPORTED, mirroring how Segment forwards regulations only to supporting
+ * destinations.
+ */
+export const privacyRegulationService = new RegulationService(
+  [
+    ...(configuredDestinations.bigquery ? [{ name: 'bigquery', deleter: configuredDestinations.bigquery }] : []),
+    ...(configuredDestinations.customerio ? [{ name: 'customerio', deleter: configuredDestinations.customerio }] : []),
+  ],
+  configuredDestinations.webhook ? ['webhook'] : []
+)

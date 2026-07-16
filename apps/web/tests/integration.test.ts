@@ -432,4 +432,61 @@ describe('Analytics Integration Tests', () => {
       expect(response.status).toBe(204)
     })
   })
+
+  describe('Privacy Regulations Contract', () => {
+    const OPENTRACK_SECRET = 'test-opentrack-secret-0123456789abcdef'
+    const regulationBody = {
+      regulationType: 'DELETE_ONLY',
+      subjectType: 'USER_ID',
+      subjectIds: ['user_12345'],
+    }
+
+    it('never attaches browser CORS grants to the internal regulations route', async () => {
+      const response = await $fetchRaw('/internal/v1/regulations', {
+        method: 'POST',
+        headers: {
+          Origin: 'https://attacker.example',
+          Authorization: 'Bearer invalid',
+        },
+        body: regulationBody,
+      })
+
+      expect(response.headers.get('access-control-allow-origin')).toBeNull()
+      expect(response.headers.get('access-control-allow-credentials')).toBeNull()
+    })
+
+    it('never accepts the analytics WRITE_KEY as regulation authorization', async () => {
+      const response = await $fetchRaw('/internal/v1/regulations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${VALID_WRITE_KEY}` },
+        body: regulationBody,
+      })
+
+      expect(response.status).toBe(401)
+    })
+
+    it('reports NOT_SUPPORTED when no deletion-capable destination is configured', async () => {
+      // The test server configures no BigQuery or Customer.io destination, so a
+      // well-formed authenticated regulation flows through the real wiring and
+      // reports that nothing could act on it.
+      const response = await $fetchRaw('/internal/v1/regulations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${OPENTRACK_SECRET}` },
+        body: regulationBody,
+      })
+
+      expect(response.status).toBe(501)
+      expect(response._data).toMatchObject({ status: 'NOT_SUPPORTED' })
+    })
+
+    it('rejects malformed regulations with 400', async () => {
+      const response = await $fetchRaw('/internal/v1/regulations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${OPENTRACK_SECRET}` },
+        body: { ...regulationBody, subjectIds: [] },
+      })
+
+      expect(response.status).toBe(400)
+    })
+  })
 })

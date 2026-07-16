@@ -7,3 +7,5 @@ export * from './validation/track'
 
 // Enhanced schemas with full Segment specification compliance
 export * from './validation/enhanced'
+
+export * from './privacy'

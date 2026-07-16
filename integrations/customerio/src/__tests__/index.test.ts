@@ -9,6 +9,7 @@ const mockTrack = vi.fn().mockResolvedValue({})
 const mockTrackAnonymous = vi.fn().mockResolvedValue({})
 const mockTrackPageView = vi.fn().mockResolvedValue({})
 const mockMergeCustomers = vi.fn().mockResolvedValue({})
+const mockDestroy = vi.fn().mockResolvedValue({})
 
 vi.mock('customerio-node', () => ({
   TrackClient: class MockTrackClient {
@@ -17,6 +18,7 @@ vi.mock('customerio-node', () => ({
     trackAnonymous = mockTrackAnonymous
     trackPageView = mockTrackPageView
     mergeCustomers = mockMergeCustomers
+    destroy = mockDestroy
   },
   RegionUS: 'US',
   RegionEU: 'EU',
@@ -313,6 +315,37 @@ describe('CustomerioIntegration', () => {
       await integration.alias(call)
 
       expect(mockMergeCustomers).toHaveBeenCalledWith('id', 'user123', 'id', 'temp456')
+    })
+  })
+
+  describe('deleteUsers', () => {
+    it('destroys every requested person', async () => {
+      await integration.deleteUsers(['user_1', 'user_2'])
+
+      expect(mockDestroy).toHaveBeenCalledTimes(2)
+      expect(mockDestroy).toHaveBeenNthCalledWith(1, 'user_1')
+      expect(mockDestroy).toHaveBeenNthCalledWith(2, 'user_2')
+    })
+
+    it('treats unknown people as already deleted', async () => {
+      mockDestroy.mockRejectedValueOnce({ statusCode: 404 })
+
+      await expect(integration.deleteUsers(['ghost', 'user_2'])).resolves.toEqual({ status: 'FINISHED' })
+      expect(mockDestroy).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries retryable failures before succeeding', async () => {
+      mockDestroy.mockRejectedValueOnce({ statusCode: 500 }).mockResolvedValueOnce({})
+
+      await integration.deleteUsers(['user_1'])
+      expect(mockDestroy).toHaveBeenCalledTimes(2)
+    })
+
+    it('throws on non-retryable failures without deleting later subjects', async () => {
+      mockDestroy.mockRejectedValueOnce({ statusCode: 401 })
+
+      await expect(integration.deleteUsers(['user_1', 'user_2'])).rejects.toThrow()
+      expect(mockDestroy).toHaveBeenCalledTimes(1)
     })
   })
 
