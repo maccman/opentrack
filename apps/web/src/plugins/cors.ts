@@ -17,6 +17,12 @@ import { CORS_HEADERS, getAllowedOrigins, getOriginHeader } from '@/utils/cors'
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('request', (event) => {
+    // Only the public /v1/* ingestion API is browser-facing. Internal routes
+    // (e.g. /internal/v1/regulations) must never receive CORS grants.
+    if (!event.node.req.url?.startsWith('/v1/')) {
+      return
+    }
+
     // Skip OPTIONS requests (handled by explicit OPTIONS route)
     if (event.node.req.method === 'OPTIONS') {
       return

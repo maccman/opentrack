@@ -5,3 +5,4 @@
 
 // Set WRITE_KEY before anything else runs
 process.env.WRITE_KEY = 'test-write-key-for-integration'
+process.env.OPENTRACK_SECRET = 'test-opentrack-secret-0123456789abcdef'

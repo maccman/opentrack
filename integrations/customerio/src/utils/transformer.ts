@@ -22,6 +22,14 @@ export class CustomerioTransformer {
       transformedTraits.created_at = this.convertTimestamp(payload.timestamp)
     }
 
+    // Customer.io merges activity recorded before identification into the person
+    // via this reserved attribute (when the workspace has anonymous event merging
+    // enabled). Set it after trait transformation so the payload's own
+    // `anonymousId` is authoritative and a caller-supplied trait cannot spoof it.
+    if (payload.anonymousId) {
+      transformedTraits.anonymous_id = payload.anonymousId
+    }
+
     return {
       id: userId,
       traits: transformedTraits,

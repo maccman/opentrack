@@ -25,6 +25,32 @@ describe('CustomerioTransformer', () => {
       })
     })
 
+    it('should forward the payload anonymousId as the authoritative anonymous_id attribute', () => {
+      const payload: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        anonymousId: 'anon_456',
+        traits: {
+          email: 'test@example.com',
+          anonymousId: 'spoofed-anonymous-id',
+        },
+      }
+
+      const result = CustomerioTransformer.transformIdentify(payload)
+      expect(result.traits.anonymous_id).toBe('anon_456')
+    })
+
+    it('should not add an anonymous_id attribute when the payload has none', () => {
+      const payload: IdentifyPayload = {
+        type: 'identify',
+        userId: 'user123',
+        traits: { email: 'test@example.com' },
+      }
+
+      const result = CustomerioTransformer.transformIdentify(payload)
+      expect(result.traits).not.toHaveProperty('anonymous_id')
+    })
+
     it('should convert camelCase trait keys to snake_case', () => {
       const payload: IdentifyPayload = {
         type: 'identify',

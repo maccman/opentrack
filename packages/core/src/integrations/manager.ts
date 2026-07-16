@@ -35,11 +35,14 @@ export class IntegrationManager {
     // Strip writeKey before processing - it's for authentication only, not for integrations
     const { writeKey: _, ...cleanPayload } = payload as IntegrationPayload & { writeKey?: string }
 
+    // Log identifier presence rather than the identifiers themselves: log
+    // pipelines are rarely covered by data deletion, so subject ids written
+    // here would outlive a privacy regulation that erased the analytics rows.
     this.logger?.info(
       {
         type: cleanPayload.type,
-        userId: 'userId' in cleanPayload ? cleanPayload.userId : undefined,
-        anonymousId: 'anonymousId' in cleanPayload ? cleanPayload.anonymousId : undefined,
+        hasUserId: 'userId' in cleanPayload && cleanPayload.userId !== undefined,
+        hasAnonymousId: 'anonymousId' in cleanPayload && cleanPayload.anonymousId !== undefined,
         timestamp: cleanPayload.timestamp,
       },
       'Processing event'

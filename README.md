@@ -158,9 +158,69 @@ Follow these steps to set up and run your own instance of OpenTrack.
     BIGQUERY_DATASET=your_bigquery_dataset_name
     # Optional: Set to 'false' to manage BigQuery schema manually
     BIGQUERY_AUTO_TABLE_MANAGEMENT=true
+
+    # Optional: server-only credential for POST /internal/v1/regulations (user deletion).
+    # At least 32 characters, no whitespace, and never the same value as WRITE_KEY.
+    OPENTRACK_SECRET=generate-a-long-random-server-secret
     ```
 
     You will also need to set up Google Cloud authentication. Refer to the instructions in the [Google BigQuery integration README](./integrations/bigquery/README.md).
+
+### User deletion (privacy regulations)
+
+OpenTrack supports GDPR/CCPA-style user deletion through an internal endpoint modeled on
+[Segment's Deletion and Suppression API](https://docs.segmentapis.com/tag/Deletion-and-Suppression/).
+Because OpenTrack is stateless, only `DELETE_ONLY` regulations are supported: the request is executed
+synchronously against every configured destination, nothing is remembered afterwards, and events that
+arrive later recreate the user. Suppression requires durable state and is intentionally not offered.
+
+```bash
+curl -X POST https://your-deployment.vercel.app/internal/v1/regulations \
+  -H "Authorization: Bearer $OPENTRACK_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"regulationType": "DELETE_ONLY", "subjectType": "USER_ID", "subjectIds": ["user_12345"]}'
+```
+
+Subject ids are the same arbitrary strings (up to 255 characters) the ingestion API accepts, with up to
+100 per request. The response reports a Segment-style status per destination and overall:
+
+```json
+{
+  "regulationType": "DELETE_ONLY",
+  "subjectType": "USER_ID",
+  "status": "FINISHED",
+  "destinations": [
+    { "name": "bigquery", "status": "FINISHED" },
+    { "name": "customerio", "status": "FINISHED" },
+    { "name": "webhook", "status": "NOT_SUPPORTED" }
+  ]
+}
+```
+
+- `200 FINISHED` — every deletion-capable destination deleted the subjects' current data.
+- `202 RUNNING` (with `Retry-After`) — BigQuery rows are still in the streaming buffer; retry the same
+  request later. Deletion is idempotent.
+- `502 FAILED` / `PARTIAL_SUCCESS` — one or more destinations failed; retry.
+- `501 NOT_SUPPORTED` — no configured destination supports deletion (for example, only the generic
+  webhook is configured). Destinations that cannot delete are always reported, never silently skipped.
+
+What deletion covers, per destination:
+
+- **BigQuery** deletes rows matching the requested `user_id`, rows carrying an `anonymous_id` observed
+  on that user's own canonical rows, and alias rows whose `previous_id` equals a requested id. A
+  browser-supplied `previousId` is never promoted into a deletion root (that would let one client
+  delete another user's data), so if your system of record has trusted historical ids, include each of
+  them in `subjectIds`. Only OpenTrack-shaped tables (those with `id` and `received_at` columns) are
+  touched; other tables sharing the dataset are skipped.
+- **Customer.io** deletes the person via the Track API. Anonymous events are removed only if the
+  workspace merged them into the person first — verify **Settings > Workspace Settings > Merge
+  Options > Anonymous event merge** is enabled (workspaces created before July 2021 may have it off).
+  OpenTrack forwards `anonymousId` on identify calls so this merging works going forward.
+- **Webhook** deliveries cannot be recalled and are reported as `NOT_SUPPORTED`; whatever receives
+  them must handle deletion itself.
+
+Callers should stop sending the subjects' analytics before issuing the regulation; events accepted
+during deletion may survive it or recreate the user immediately afterwards.
 
 ## Usage
 

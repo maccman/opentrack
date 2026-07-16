@@ -4,9 +4,25 @@ A Nitro-based web API for the OpenTrack analytics platform.
 
 Look at the [nitro quick start](https://nitro.unjs.io/guide#quick-start) to learn more how to get started.
 
+## Internal Regulations API
+
+`POST /internal/v1/regulations` executes a Segment-style `DELETE_ONLY` regulation against every
+configured destination (see the root README for the full contract and caveats). It is a
+server-to-server endpoint:
+
+- Authentication is `Authorization: Bearer $OPENTRACK_SECRET` — a dedicated secret of at least 32
+  characters with no whitespace. The browser-visible `WRITE_KEY` is never accepted, and if
+  `OPENTRACK_SECRET` equals `WRITE_KEY` or is too weak, the endpoint fails closed with `503`.
+- The request body must be `Content-Type: application/json` with exactly
+  `{"regulationType": "DELETE_ONLY", "subjectType": "USER_ID", "subjectIds": ["..."]}` (1–100 ids,
+  each up to 255 characters).
+- CORS grants are only ever attached to public `/v1/*` routes, so browsers cannot make credentialed
+  cross-origin calls to `/internal/*`.
+
 ## CORS Configuration
 
 The API includes built-in CORS (Cross-Origin Resource Sharing) support optimized for analytics endpoints.
+CORS headers apply only to the public `/v1/*` analytics routes; internal routes never receive them.
 
 ### Environment Variables
 

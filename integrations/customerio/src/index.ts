@@ -4,6 +4,10 @@ import { TrackClient } from 'customerio-node'
 
 import { CustomerioErrorHandler, CustomerioTransformer, RegionManager, type CustomerioRegion } from './utils'
 
+function isNotFoundError(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 404)
+}
+
 export interface CustomerioConfig {
   siteId: string
   apiKey: string
@@ -191,6 +195,33 @@ export class CustomerioIntegration implements Integration {
     } catch (error) {
       throw CustomerioErrorHandler.mapError(error)
     }
+  }
+
+  /**
+   * Deletes the people Customer.io currently holds for the given user ids.
+   *
+   * Deleting a person also removes activity merged into them; nothing is
+   * suppressed, so later events recreate the person. Ids Customer.io does not
+   * know (404) count as already deleted, which keeps retries idempotent.
+   */
+  async deleteUsers(subjectIds: string[]): Promise<{ status: 'FINISHED' }> {
+    for (const subjectId of subjectIds) {
+      try {
+        await this.executeWithRetry(async () => {
+          try {
+            await this.client.destroy(subjectId)
+          } catch (error) {
+            if (isNotFoundError(error)) {
+              return
+            }
+            throw error
+          }
+        })
+      } catch (error) {
+        throw CustomerioErrorHandler.mapError(error)
+      }
+    }
+    return { status: 'FINISHED' }
   }
 
   /**
