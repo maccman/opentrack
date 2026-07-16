@@ -24,6 +24,8 @@ export default defineConfig({
         analytics: resolve(__dirname, 'src/analytics.ts'),
         // Server-specific entry point
         server: resolve(__dirname, 'src/server.ts'),
+        // Server-only privacy regulations admin client (Node.js >= 18)
+        admin: resolve(__dirname, 'src/admin.ts'),
       },
       name: 'OpenTrackAnalytics',
       fileName: (format, entryName) => {
