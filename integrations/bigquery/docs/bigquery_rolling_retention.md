@@ -98,7 +98,11 @@ Then add a base table missing one fingerprint column and verify that the script 
 
 ## Schedule and operate
 
-1. Create a native BigQuery scheduled query from the reviewed versioned SQL. Do not configure a destination table.
+1. Create a native BigQuery scheduled query from the reviewed versioned SQL.
+   Leave both the destination dataset and destination table unset. With the
+   `bq` CLI, do not pass `--target_dataset`; a DML script with a target dataset
+   but no destination table fails its transfer run with a dataset-consistency
+   error.
 2. Run it daily at a fixed UTC time. Daily execution keeps the active-query retention boundary within one schedule interval.
 3. Use the same project, region, and service account validated in the manual run.
 4. Run once manually, inspect every child `DELETE` job, and confirm the final per-table and total row counts.
