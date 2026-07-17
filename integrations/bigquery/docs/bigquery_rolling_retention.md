@@ -8,7 +8,7 @@ The query deletes old rows from the existing unpartitioned tables. It does not e
 
 - `received_at` is written by the OpenTrack integration, so clients cannot extend retention by supplying an old or future event timestamp.
 - The cutoff is the execution time minus 13 calendar months in UTC. Rows exactly at the cutoff are retained; only rows with `received_at < retention_cutoff` are deleted.
-- Historical tables do not consistently carry OpenTrack labels. The script therefore limits itself to `BASE TABLE`s in the dedicated dataset and requires exactly one `id STRING` column and one `received_at TIMESTAMP` column.
+- Historical tables do not consistently carry OpenTrack labels. The script therefore limits itself to `BASE TABLE`s in the dedicated dataset and requires the six invariant OpenTrack columns with their exact types: `id STRING`, `received_at TIMESTAMP`, `uuid_ts TIMESTAMP`, `loaded_at TIMESTAMP`, `user_id STRING`, and `anonymous_id STRING`.
 - Project, dataset, and table identifiers must match the conservative identifier formats used by the integration before they are interpolated into dynamic SQL.
 - The script asserts that every base table matches the fingerprint. A schema surprise fails the run before any deletion rather than silently leaving a table outside retention.
 - Each table is deleted independently, without an all-table transaction. A partial run is safe to retry because every `DELETE` is idempotent.
@@ -40,7 +40,20 @@ WITH schema_fingerprints AS (
     table_name,
     COUNTIF(column_name = 'id' AND data_type = 'STRING') = 1
       AND COUNTIF(column_name = 'received_at' AND data_type = 'TIMESTAMP') = 1
-      AND COUNTIF(column_name IN ('id', 'received_at')) = 2
+      AND COUNTIF(column_name = 'uuid_ts' AND data_type = 'TIMESTAMP') = 1
+      AND COUNTIF(column_name = 'loaded_at' AND data_type = 'TIMESTAMP') = 1
+      AND COUNTIF(column_name = 'user_id' AND data_type = 'STRING') = 1
+      AND COUNTIF(column_name = 'anonymous_id' AND data_type = 'STRING') = 1
+      AND COUNTIF(
+        column_name IN (
+          'id',
+          'received_at',
+          'uuid_ts',
+          'loaded_at',
+          'user_id',
+          'anonymous_id'
+        )
+      ) = 6
       AS has_opentrack_fingerprint
   FROM `YOUR_PROJECT_ID.opentrack_analytics.INFORMATION_SCHEMA.COLUMNS`
   GROUP BY table_name

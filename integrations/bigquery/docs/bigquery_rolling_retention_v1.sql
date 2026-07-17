@@ -25,8 +25,8 @@ ASSERT REGEXP_CONTAINS(dataset_id, r'^[A-Za-z0-9_]+$')
 AS 'Invalid BigQuery dataset identifier';
 
 -- Historical OpenTrack tables do not consistently have labels. The dedicated
--- dataset boundary plus the exact id/received_at type fingerprint identifies the
--- physical tables this script may mutate.
+-- dataset boundary plus the exact invariant-column type fingerprint identifies
+-- the physical tables this script may mutate.
 EXECUTE IMMEDIATE FORMAT(
   """
   CREATE TEMP TABLE retention_inventory AS
@@ -35,7 +35,20 @@ EXECUTE IMMEDIATE FORMAT(
       table_name,
       COUNTIF(column_name = 'id' AND data_type = 'STRING') = 1
         AND COUNTIF(column_name = 'received_at' AND data_type = 'TIMESTAMP') = 1
-        AND COUNTIF(column_name IN ('id', 'received_at')) = 2
+        AND COUNTIF(column_name = 'uuid_ts' AND data_type = 'TIMESTAMP') = 1
+        AND COUNTIF(column_name = 'loaded_at' AND data_type = 'TIMESTAMP') = 1
+        AND COUNTIF(column_name = 'user_id' AND data_type = 'STRING') = 1
+        AND COUNTIF(column_name = 'anonymous_id' AND data_type = 'STRING') = 1
+        AND COUNTIF(
+          column_name IN (
+            'id',
+            'received_at',
+            'uuid_ts',
+            'loaded_at',
+            'user_id',
+            'anonymous_id'
+          )
+        ) = 6
         AS has_opentrack_fingerprint
     FROM `%s.%s.INFORMATION_SCHEMA.COLUMNS`
     GROUP BY table_name
