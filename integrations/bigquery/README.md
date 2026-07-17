@@ -84,3 +84,9 @@ Ensure your Google Cloud service account has the following roles for the integra
 To help you get started with analyzing your data, we provide a set of pre-built SQL views that create an analytics-ready layer on top of your raw data. These views handle common transformations like sessionization and user state management.
 
 You can find the script to create these views in `integrations/bigquery/docs/bigquery_dynamic_views.sql`. Simply run this script in your BigQuery console after replacing the placeholder project and dataset IDs.
+
+## Rolling Retention
+
+OpenTrack includes a versioned native BigQuery scheduled-query script for deleting raw rows older than 13 calendar months without dropping the existing unpartitioned tables. See the [rolling retention runbook](docs/bigquery_rolling_retention.md) for the safety model, preflight validation, scratch-dataset test, scheduling steps, and recovery-window caveats.
+
+Retention is destination-specific. The BigQuery procedure does not modify data sent to Customer.io or any other configured destination.
