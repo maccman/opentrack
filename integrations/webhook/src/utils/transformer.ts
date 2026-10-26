@@ -137,6 +137,7 @@ export class WebhookTransformer {
   private static transformPage(payload: PagePayload): Record<string, unknown> {
     return {
       name: payload.name,
+      category: payload.category,
       properties: payload.properties || {},
     }
   }

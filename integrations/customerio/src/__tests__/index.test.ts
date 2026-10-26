@@ -102,6 +102,17 @@ describe('CustomerioIntegration', () => {
       })
     })
 
+    it('should skip anonymous identify calls without failing', async () => {
+      const call: IdentifyPayload = {
+        type: 'identify',
+        anonymousId: 'anon123',
+        traits: { email: 'lead@example.com' },
+      }
+
+      await expect(integration.identify(call)).resolves.toBeUndefined()
+      expect(mockIdentify).not.toHaveBeenCalled()
+    })
+
     it('should convert camelCase trait keys to snake_case', async () => {
       const call: IdentifyPayload = {
         type: 'identify',

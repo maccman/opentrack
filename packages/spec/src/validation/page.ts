@@ -6,6 +6,7 @@ export const pageEventSchema = segmentEventBaseSchema
   .extend({
     type: z.literal('page'),
     name: z.string().optional(),
+    category: z.string().optional(),
     properties: z.record(z.string(), z.any()).optional(),
     userId: z.string().optional(),
     anonymousId: z.string().optional(),

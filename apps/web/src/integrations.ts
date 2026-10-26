@@ -18,6 +18,8 @@ import { RegulationService } from '@/privacy/regulation-service'
 const LOGGER_NAME = 'IntegrationManager' as const
 const DEFAULT_PRODUCTION_LOG_LEVEL = 'info' as const
 const DEFAULT_DEVELOPMENT_LOG_LEVEL = 'debug' as const
+// Without debug logging only warnings and errors (failed integrations) are logged
+const DEFAULT_LOG_LEVEL = 'warn' as const
 
 /**
  * Helper function to safely retrieve optional environment variables
@@ -174,6 +176,9 @@ function createConfiguredDestinations() {
 /**
  * Creates logger configuration for the integration manager
  *
+ * Logging is always on so failed integrations are visible; without debug
+ * logging only warnings and errors are written.
+ *
  * Debug logging is enabled when:
  * - OPENTRACK_DEBUG environment variable is set to 'true', OR
  * - NODE_ENV is set to 'development'
@@ -183,18 +188,15 @@ function createConfiguredDestinations() {
  * - NODE_ENV: Application environment ('development', 'production', etc.)
  * - OPENTRACK_LOG_LEVEL: Override default log level
  *
- * @returns Logger configuration or undefined if debug logging is disabled
+ * @returns Logger configuration
  */
-function createLoggerConfig(): LoggerConfig | undefined {
+function createLoggerConfig(): LoggerConfig {
   const isDebugEnabled =
     getOptionalEnvVar('OPENTRACK_DEBUG') === 'true' || getOptionalEnvVar('NODE_ENV') === 'development'
 
-  if (!isDebugEnabled) {
-    return undefined
-  }
-
   const isProduction = getOptionalEnvVar('NODE_ENV') === 'production'
-  const defaultLevel = isProduction ? DEFAULT_PRODUCTION_LOG_LEVEL : DEFAULT_DEVELOPMENT_LOG_LEVEL
+  const debugLevel = isProduction ? DEFAULT_PRODUCTION_LOG_LEVEL : DEFAULT_DEVELOPMENT_LOG_LEVEL
+  const defaultLevel = isDebugEnabled ? debugLevel : DEFAULT_LOG_LEVEL
   const logLevel = getOptionalEnvVar('OPENTRACK_LOG_LEVEL') || defaultLevel
 
   const logger = pino({

@@ -439,7 +439,7 @@ function trackPageView(pageName, category, additionalProps = {}) {
     ...additionalProps,
   }
 
-  analytics.page(pageName, category, properties)
+  analytics.page(category, pageName, properties)
 }
 
 // Usage
@@ -470,10 +470,10 @@ analytics.page('View')
 #### Hierarchical Naming
 
 ```javascript
-// Category > Section > Page
+// Category first, then page name
 analytics.page('E-commerce', 'Product Detail')
-analytics.page('Account', 'Settings', 'Privacy')
-analytics.page('Support', 'Knowledge Base', 'FAQ')
+analytics.page('Account', 'Privacy Settings')
+analytics.page('Support', 'Knowledge Base FAQ')
 ```
 
 #### URL-Based Naming
@@ -558,7 +558,7 @@ async function loadPageTracking() {
 // Use in route handlers
 router.on('route:change', async (route) => {
   const analytics = await loadPageTracking()
-  analytics.page(route.name, route.category)
+  analytics.page(route.category, route.name)
 })
 ```
 
@@ -602,7 +602,7 @@ analytics.page('User Profile', {
 
 ```javascript
 // Category page
-analytics.page('Product Category', 'E-commerce', {
+analytics.page('E-commerce', 'Product Category', {
   category: 'Electronics',
   itemCount: 24,
   sortBy: 'price_asc',
@@ -610,7 +610,7 @@ analytics.page('Product Category', 'E-commerce', {
 })
 
 // Product detail page
-analytics.page('Product Detail', 'E-commerce', {
+analytics.page('E-commerce', 'Product Detail', {
   productId: 'iphone-15',
   productName: 'iPhone 15',
   category: 'Electronics',
@@ -621,7 +621,7 @@ analytics.page('Product Detail', 'E-commerce', {
 })
 
 // Checkout pages
-analytics.page('Checkout Step 1', 'E-commerce', {
+analytics.page('E-commerce', 'Checkout Step 1', {
   step: 1,
   stepName: 'shipping',
   cartValue: 299.97,
@@ -633,7 +633,7 @@ analytics.page('Checkout Step 1', 'E-commerce', {
 
 ```javascript
 // Article page
-analytics.page('Article', 'Blog', {
+analytics.page('Blog', 'Article', {
   articleId: 'analytics-guide-2025',
   title: 'Complete Analytics Guide 2025',
   author: 'Data Team',
@@ -644,7 +644,7 @@ analytics.page('Article', 'Blog', {
 })
 
 // Video page
-analytics.page('Video', 'Media', {
+analytics.page('Media', 'Video', {
   videoId: 'intro-to-segment',
   title: 'Introduction to Segment',
   duration: 300,
@@ -657,7 +657,7 @@ analytics.page('Video', 'Media', {
 
 ```javascript
 // Dashboard pages
-analytics.page('Dashboard', 'App', {
+analytics.page('App', 'Dashboard', {
   section: 'analytics',
   widgets: ['revenue', 'users', 'conversions'],
   timeRange: 'last_30_days',
@@ -665,7 +665,7 @@ analytics.page('Dashboard', 'App', {
 })
 
 // Settings pages
-analytics.page('Settings', 'App', {
+analytics.page('App', 'Settings', {
   section: 'privacy',
   previousSection: 'profile',
   changesUnsaved: false,

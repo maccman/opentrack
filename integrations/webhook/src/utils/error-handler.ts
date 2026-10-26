@@ -7,6 +7,11 @@ export interface WebhookError extends Error {
   isRetryable?: boolean
 }
 
+/**
+ * Network error codes worth retrying; ECONNABORTED is what axios reports for its own timeout
+ */
+const RETRYABLE_NETWORK_CODES = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED', 'EPIPE', 'ERR_NETWORK']
+
 function isAxiosError(error: unknown): error is AxiosError {
   return typeof error === 'object' && error !== null && 'isAxiosError' in error && error.isAxiosError === true
 }
@@ -23,7 +28,10 @@ export class WebhookErrorHandler {
         statusCode: error.response?.status,
         code: error.code,
         response: error.response?.data,
-        isRetryable: this.isRetryableStatusCode(error.response?.status),
+        // No response means the request never completed (refused, reset, timed out)
+        isRetryable: error.response
+          ? this.isRetryableStatusCode(error.response.status)
+          : RETRYABLE_NETWORK_CODES.includes(error.code || ''),
       }
 
       // Enhanced error messages based on status codes
@@ -125,8 +133,7 @@ export class WebhookErrorHandler {
     }
 
     // Check by error code
-    const retryableCodes = ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'EPIPE']
-    return retryableCodes.includes(error.code || '')
+    return RETRYABLE_NETWORK_CODES.includes(error.code || '')
   }
 
   /**

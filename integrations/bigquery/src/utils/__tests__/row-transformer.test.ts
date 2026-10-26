@@ -283,6 +283,12 @@ describe('transformToRow', () => {
       expect(row.url).toBe('https://example.com')
     })
 
+    it('should store the page category', () => {
+      const row = transformToRow(createPagePayload({ category: 'Docs' }))
+
+      expect(row.category).toBe('Docs')
+    })
+
     it('should handle page events without properties', () => {
       const payload = createPagePayload({ properties: undefined })
       const row = transformToRow(payload)

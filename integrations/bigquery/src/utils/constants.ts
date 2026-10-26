@@ -33,15 +33,6 @@ export const TABLE_TYPES = {
 
 export type TableType = (typeof TABLE_TYPES)[keyof typeof TABLE_TYPES]
 
-// Type hierarchy for relaxation (from most restrictive to most permissive)
-export const TYPE_HIERARCHY: readonly BigQueryType[] = [
-  BIGQUERY_TYPES.BOOLEAN,
-  BIGQUERY_TYPES.INTEGER,
-  BIGQUERY_TYPES.FLOAT,
-  BIGQUERY_TYPES.TIMESTAMP,
-  BIGQUERY_TYPES.STRING,
-] as const
-
 // Common timestamp regex patterns
 export const TIMESTAMP_PATTERNS = {
   ISO_8601: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/,

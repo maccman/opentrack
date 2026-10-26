@@ -102,6 +102,7 @@ export const enhancedPageEventSchema = enhancedSegmentEventBaseSchema
   .extend({
     type: z.literal('page'),
     name: z.string().max(255, 'Page name cannot exceed 255 characters').optional(),
+    category: z.string().max(255, 'Page category cannot exceed 255 characters').optional(),
     properties: enhancedPropertiesSchema,
     userId: z.string().max(255, 'userId cannot exceed 255 characters').optional(),
     anonymousId: z.string().max(255, 'anonymousId cannot exceed 255 characters').optional(),

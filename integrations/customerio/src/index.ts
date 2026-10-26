@@ -45,6 +45,12 @@ export class CustomerioIntegration implements Integration {
    * Identify a user in Customer.io
    */
   async identify(payload: IdentifyPayload): Promise<void> {
+    // Customer.io can't store a person without an id. Anonymous traits aren't
+    // lost: the client resends every known trait once the user is identified.
+    if (!payload.userId) {
+      return
+    }
+
     try {
       const transformed = CustomerioTransformer.transformIdentify(payload)
 
@@ -54,7 +60,8 @@ export class CustomerioIntegration implements Integration {
         typeof transformed.traits.email === 'string' &&
         !CustomerioTransformer.isValidEmail(transformed.traits.email)
       ) {
-        throw new Error(`Invalid email format: ${transformed.traits.email}`)
+        // The address itself stays out of the message, which is logged
+        throw new Error('Invalid email format in the email trait')
       }
 
       // Sanitize properties

@@ -19,7 +19,7 @@ BIGQUERY_AUTO_TABLE_MANAGEMENT=false
 1.  **Dataset Creation**: Creates the dataset if it doesn't exist.
 2.  **Table Creation**: Creates tables on first data insertion with an appropriate base schema.
 3.  **Schema Evolution**: Adds new columns when new properties are discovered.
-4.  **Type Relaxation**: Automatically widens column types when needed (e.g., INTEGER → FLOAT → STRING).
+4.  **Stable Column Types**: A column keeps the type it was created with, because BigQuery cannot change column types. Numbers are stored as FLOAT. A value that does not fit its column is converted when that is lossless (e.g. a number into a STRING column) and otherwise dropped from the row, with a warning naming the column.
 5.  **Caching**: Caches table schemas in memory for 5 minutes to reduce BigQuery API calls.
 
 ### Behavior When Disabled
