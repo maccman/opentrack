@@ -65,13 +65,14 @@ export class AnalyticsTransport {
     }
 
     const endpoint = this.buildEndpoint(event.type)
-    // Add writeKey to payload if configured (needed for beacon which can't send headers)
-    const payload = this.config.writeKey ? { ...event, writeKey: this.config.writeKey } : event
-    const data = JSON.stringify(payload)
-
     this.debugLog('Sending event:', { endpoint, data: event })
 
     try {
+      // Add writeKey to payload if configured (needed for beacon which can't send headers)
+      const payload = this.config.writeKey ? { ...event, writeKey: this.config.writeKey } : event
+      // Serialize inside the try: properties holding a BigInt or a circular
+      // reference throw here, and callers don't await this promise
+      const data = JSON.stringify(payload)
       await this.sendWithRetry(endpoint, data)
     } catch (error) {
       this.debugError('Failed to send event after retries:', error)

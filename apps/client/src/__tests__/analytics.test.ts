@@ -80,6 +80,23 @@ describe('sending', () => {
     expect(beaconCount()).toBe(2)
   })
 
+  it('contains events that cannot be serialized instead of rejecting globally', async () => {
+    const { analytics, beaconCount } = await loadAnalytics()
+    analytics.load()
+    const onUnhandledRejection = vi.fn()
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    try {
+      analytics.track('Order Completed', { orderId: 123n })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(onUnhandledRejection).not.toHaveBeenCalled()
+      expect(beaconCount()).toBe(0)
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
+  })
+
   it('holds events fired before load() and sends them with its write key', async () => {
     const { analytics, beaconCount, sentPayloads } = await loadAnalytics()
 

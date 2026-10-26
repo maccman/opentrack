@@ -14,6 +14,10 @@ export interface CoercedRow {
 
 const DROPPED = Symbol('dropped')
 
+// BigQuery's TIMESTAMP range in seconds since the Unix epoch
+const MIN_TIMESTAMP_SECONDS = -62135596800 // 0001-01-01T00:00:00Z
+const MAX_TIMESTAMP_SECONDS = 253402300799 // 9999-12-31T23:59:59Z
+
 /**
  * Converts a value to a column's type, or returns DROPPED when it can't be
  * represented. Column type names may use legacy (FLOAT) or standard (FLOAT64)
@@ -51,6 +55,11 @@ function coerceValue(value: unknown, columnType: string): unknown {
 function coerceTimestamp(value: unknown): unknown {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? DROPPED : value
+  }
+  // Streaming inserts read a number as seconds since the Unix epoch. One outside
+  // the TIMESTAMP range (such as a milliseconds value) would reject the whole row.
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= MIN_TIMESTAMP_SECONDS && value <= MAX_TIMESTAMP_SECONDS ? value : DROPPED
   }
   if (typeof value !== 'string') {
     return DROPPED

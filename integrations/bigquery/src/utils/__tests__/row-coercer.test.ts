@@ -49,6 +49,20 @@ describe('coerceRowToSchema', () => {
     expect(row.shipped_at).toEqual(new Date('2025-01-15T12:30:00.000Z'))
   })
 
+  it('keeps numeric Unix seconds in TIMESTAMP columns', () => {
+    expect(coerceRowToSchema({ shipped_at: 1736949600 }, schema)).toEqual({
+      row: { shipped_at: 1736949600 },
+      droppedColumns: [],
+    })
+  })
+
+  it('drops numbers outside the TIMESTAMP range, such as milliseconds, so the row still inserts', () => {
+    expect(coerceRowToSchema({ shipped_at: 1736949600000 }, schema)).toEqual({
+      row: {},
+      droppedColumns: ['shipped_at'],
+    })
+  })
+
   it('passes through nulls and columns the schema does not know', () => {
     const row = { quantity: null, unknown_column: { nested: true } }
 
