@@ -10,7 +10,7 @@ import {
   isStreamingBufferError,
   orderTablesForDeletion,
 } from './deletion'
-import { getTableNames, TableManager, transformToRow } from './utils'
+import { getTableNames, RAW_INSERT_OPTIONS, TableManager, toInsertRows, transformToRow } from './utils'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
@@ -71,14 +71,19 @@ export class BigQueryIntegration implements Integration {
 
   private async insert(payload: Payload, tableName: string) {
     const row = transformToRow(payload)
+    // Taken from the payload because a property named `id` can overwrite the row's `id`
+    const insertIds = [payload.messageId]
 
     if (this.tableManager) {
       // Use table manager for auto-creation and schema evolution
       const tableType = this.getTableType(tableName)
-      await this.tableManager.insertWithAutoSchema(this.config.datasetId, tableName, tableType, [row])
+      await this.tableManager.insertWithAutoSchema(this.config.datasetId, tableName, tableType, [row], insertIds)
     } else {
       // Direct insertion, will fail if schema is incorrect
-      await this.client.dataset(this.config.datasetId).table(tableName).insert([row])
+      await this.client
+        .dataset(this.config.datasetId)
+        .table(tableName)
+        .insert(toInsertRows([row], insertIds), RAW_INSERT_OPTIONS)
     }
   }
 

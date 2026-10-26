@@ -1,5 +1,6 @@
 // Utils Barrel Exports
 
+export * from './batch'
 export * from './context'
 export * from './id-generator'
 export * from './storage'

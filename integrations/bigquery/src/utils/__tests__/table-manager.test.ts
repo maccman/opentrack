@@ -266,10 +266,38 @@ describe('TableManager', () => {
         { id: 'test2', event: 'Another Event' },
       ]
 
-      await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', rows)
+      await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', rows, ['message-1', 'message-2'])
 
       expect(tableCreateSpy).toHaveBeenCalled()
-      expect(tableInsertSpy).toHaveBeenCalledWith(rows)
+      expect(tableInsertSpy).toHaveBeenCalledWith(
+        [
+          { insertId: 'message-1', json: rows[0] },
+          { insertId: 'message-2', json: rows[1] },
+        ],
+        { raw: true }
+      )
+    })
+
+    it('streams each row with the insertId given for it, never with its id column', async () => {
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([false])
+
+      // A property named `id` overwrites the row's id column, so it must not become the dedupe key
+      await tableManager.insertWithAutoSchema(
+        'test-dataset',
+        'test-table',
+        'tracks',
+        [
+          { id: 'product-42', event: 'Test Event' },
+          { id: 'product-42', event: 'Test Event' },
+          { id: 'product-42', event: 'Row Without Message Id' },
+        ],
+        ['message-1', 'message-2']
+      )
+
+      const [insertedRows, options] = tableInsertSpy.mock.calls[0] as [Array<{ insertId?: string }>, unknown]
+      expect(options).toEqual({ raw: true })
+      expect(insertedRows.map((row) => row.insertId)).toEqual(['message-1', 'message-2', undefined])
     })
 
     it('should fit values to existing column types instead of failing the insert', async () => {
@@ -286,12 +314,18 @@ describe('TableManager', () => {
       tableGetMetadataSpy.mockResolvedValue([{ schema: existingSchema }])
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', [
-        { id: 'test1', quantity: 9.99, label: 7 },
-      ])
+      await tableManager.insertWithAutoSchema(
+        'test-dataset',
+        'test-table',
+        'tracks',
+        [{ id: 'test1', quantity: 9.99, label: 7 }],
+        ['test1']
+      )
 
       expect(tableSetMetadataSpy).not.toHaveBeenCalled()
-      expect(tableInsertSpy).toHaveBeenCalledWith([{ id: 'test1', label: '7' }])
+      expect(tableInsertSpy).toHaveBeenCalledWith([{ insertId: 'test1', json: { id: 'test1', label: '7' } }], {
+        raw: true,
+      })
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('test-dataset.test-table: quantity'))
     })
 

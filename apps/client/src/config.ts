@@ -12,7 +12,7 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   userIdKey: 'analytics_user_id', // localStorage key for user ID
   anonymousIdKey: 'analytics_anonymous_id', // localStorage key for anonymous ID
   traitsKey: 'analytics_traits', // localStorage key for user traits
-  useBeacon: true, // Use sendBeacon by default for reliability
+  useBeacon: true, // Beacon unsent events when the page is hidden
   timeout: 5000, // 5 second timeout
   retries: 2, // 2 retry attempts
   retryDelay: 1000, // 1 second base delay for retries

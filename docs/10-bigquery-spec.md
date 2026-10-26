@@ -66,7 +66,7 @@ All tables include these standard Segment columns:
 
 | Column         | Type      | Description                                        |
 | -------------- | --------- | -------------------------------------------------- |
-| `id`           | STRING    | Unique message ID for the event                    |
+| `id`           | STRING    | Unique message ID for the event; the dedupe key    |
 | `anonymous_id` | STRING    | Anonymous user identifier                          |
 | `user_id`      | STRING    | Known user identifier (when available)             |
 | `received_at`  | TIMESTAMP | When Segment received the event                    |
@@ -75,6 +75,28 @@ All tables include these standard Segment columns:
 | `context_*`    | VARIOUS   | Context fields (IP, user agent, device info, etc.) |
 | `uuid_ts`      | TIMESTAMP | Processing timestamp for debugging                 |
 | `loaded_at`    | TIMESTAMP | When data was loaded into BigQuery                 |
+
+### Deduplication
+
+The event's `messageId` is the dedupe key, stored in the `id` column. The same event can arrive more
+than once: the browser client retries failed requests, which repeats an event whose response was lost,
+and other senders may retry too. Each row is streamed with the event's `messageId` as
+the BigQuery `insertId`, so BigQuery drops a repeat of a row it received shortly before.
+
+That dedupe is **best effort**. BigQuery documents it as covering repeats within up to one minute, and
+even then it might keep both rows, so a repeat that arrives more than a minute later is always inserted again. Which of two
+deduped rows survives is not defined; they differ only in load-time columns such as `received_at`.
+Queries that need exactly one row per event should dedupe on `id`:
+
+```sql
+SELECT * FROM `project.dataset.pages`
+WHERE TRUE
+QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at) = 1
+```
+
+Caveat: a property or trait named `id` currently overwrites the `id` column, so those rows hold that
+value instead of the `messageId` and can't be deduped this way. The `insertId` is unaffected, since it
+is taken from the event, not the row.
 
 ## Best Practices
 
