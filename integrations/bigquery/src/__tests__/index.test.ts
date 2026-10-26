@@ -64,6 +64,22 @@ describe('BigQueryIntegration', () => {
       }
       expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(2)
     })
+
+    it('passes rows keyed by the event messageId to TableManager', async () => {
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: true })
+      await integration.track(createTrackPayload())
+      const mockTableManagerInstance = vi.mocked(TableManager).mock.instances[0] as unknown as {
+        insertWithAutoSchema: ReturnType<typeof vi.fn>
+      }
+
+      const calls = mockTableManagerInstance.insertWithAutoSchema.mock.calls as Array<
+        [string, string, string, Array<Record<string, unknown>>]
+      >
+      expect(calls.map(([, tableName, , rows]) => [tableName, rows.map((row) => row.id)])).toEqual([
+        ['tracks', ['test-message-id']],
+        ['product_purchased', ['test-message-id']],
+      ])
+    })
   })
 
   describe('with auto table management DISABLED', () => {
@@ -87,6 +103,16 @@ describe('BigQueryIntegration', () => {
       expect(mockTable).toHaveBeenCalledWith('tracks')
       expect(mockTable).toHaveBeenCalledWith('product_purchased')
       expect(mockInsert).toHaveBeenCalledTimes(2)
+    })
+
+    it('uses the event messageId as the insertId so BigQuery can dedupe replays', async () => {
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: false })
+      await integration.track(createTrackPayload())
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        [{ insertId: 'test-message-id', json: expect.objectContaining({ id: 'test-message-id' }) as unknown }],
+        { raw: true }
+      )
     })
 
     it('should fail gracefully if direct insertion fails', async () => {

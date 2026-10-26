@@ -8,10 +8,11 @@ A Segment-compatible client-side analytics library for OpenTrack. This library p
 - **Universal Support**: Works in browser, Node.js, and SSR environments (Next.js, Astro, etc.)
 - **Multiple Build Formats**: ESM, CommonJS, UMD, and IIFE builds included
 - **TypeScript Support**: Full TypeScript definitions included
-- **Browser Beacon API**: Uses `navigator.sendBeacon()` for reliable event delivery
+- **Confirmed Delivery**: Sends with `fetch`, retries network errors, 429s and 5xxs, and keeps unconfirmed events in localStorage to replay on the next page load
 - **Automatic Identity Management**: Persists user identity across sessions using localStorage
 - **Manual Page Tracking**: Call `analytics.page()` explicitly to track page views
 - **Immediate Delivery**: Each event is sent as it happens; events fired before `load()` are held until it runs
+- **Page-Hide Safe**: Uses `navigator.sendBeacon()` for whatever is still unsent when the page is hidden or closed
 - **Modular Architecture**: Clean separation of concerns with utility modules
 - **Configurable Storage**: Customizable localStorage keys and prefixes
 - **Cryptographically Secure**: Uses `crypto.getRandomValues()` for secure ID generation
@@ -358,12 +359,42 @@ analytics.load('your-write-key', {
 | `userIdKey`      | string  | `'analytics_user_id'`      | localStorage key for user ID                   |
 | `anonymousIdKey` | string  | `'analytics_anonymous_id'` | localStorage key for anonymous ID              |
 | `traitsKey`      | string  | `'analytics_traits'`       | localStorage key for user traits               |
+| `useBeacon`      | boolean | `true`                     | Beacon unsent events when the page is hidden   |
+| `timeout`        | number  | `5000`                     | Milliseconds before a request counts as failed |
+| `retries`        | number  | `2`                        | Retries after a failed request                 |
+| `retryDelay`     | number  | `1000`                     | Backoff before the first retry, then doubled   |
 
 **Note:** If you provide a custom `storagePrefix`, the individual key names will be automatically updated unless explicitly overridden.
 
 #### Event Delivery
 
-Each event is sent as soon as it's tracked, as its own request (via `navigator.sendBeacon`, falling back to `fetch`). Events tracked before `load()` is called are held so they use its `host` and write key, and are sent when `load()` runs. If `load()` is never called, held events are sent with the default configuration after 10 seconds, or sooner if the page is hidden or closed.
+Each event is sent as soon as it's tracked, as its own `fetch` request to `/v1/<type>` with `keepalive: true`
+(so it can finish if the page unloads), no cookies (`credentials: 'omit'`) and the write key in an
+`Authorization: Basic` header. Events tracked before `load()` is called are held so they use its `host` and write
+key, and are sent when `load()` runs. If `load()` is never called, held events are sent with the default
+configuration after 10 seconds.
+
+- **Confirmation and retries.** An event counts as delivered only when the server answers 2xx. Network errors,
+  timeouts, 429s and 5xxs are retried `retries` times, waiting `retryDelay` and then twice as long each time. Any
+  other 4xx means a resend would be refused too, so the event is dropped.
+- **Replay.** Every event is written to localStorage (under `analytics_queue`, shared by the site's tabs) when it's
+  tracked and removed once it's delivered or refused. Events that are held, in flight or failing when the page
+  closes stay there, and the next page load sends them after `load()` runs, with their original `messageId` and
+  `timestamp`. The queue keeps at most the newest 100 events and 256 KB, and forgets events after 7 days. Without
+  localStorage, events are still sent, just never replayed. Because a replayed event may already have arrived (its
+  response was lost when the page closed), destinations should dedupe on `messageId`; the BigQuery destination
+  stores it as `id`.
+- **Batches.** The events released at `load()`, together with replayed ones, go to `/v1/batch`, split into
+  requests under 60 KB and sent one at a time, which keeps them within the 64 KB browsers allow for keepalive
+  requests and beacons in flight.
+- **Page hide.** When the page is hidden (`visibilitychange`) or unloaded (`pagehide`), events still held for
+  `load()`, or events that failed, are sent with `navigator.sendBeacon` to `/v1/batch`, with the write key in the
+  body because beacons can't carry headers. Requests already in flight are left to finish. A beacon reports no
+  status, so its events stay queued for replay until a later request confirms them. Set `useBeacon: false` to
+  skip beacons and rely on replay alone.
+
+With `debug: true`, the client logs each delivery, retry and failure with the endpoint, event count and HTTP status;
+it never logs event payloads.
 
 ### Utility Methods
 
@@ -377,7 +408,7 @@ console.log(user.traits()) // User traits
 // Reset user identity
 analytics.reset()
 
-// Send any events still held because they were tracked before load()
+// Send any events still held because they were tracked before load(), without waiting for it
 analytics.flush()
 
 // Wait for library to be ready
@@ -439,6 +470,7 @@ This library sends events to the following OpenTrack endpoints:
 - `POST /v1/page` - For page events
 - `POST /v1/group` - For group events
 - `POST /v1/alias` - For alias events
+- `POST /v1/batch` - For events released at `load()`, replayed from an earlier page, or beaconed on page hide
 
 All payloads are fully compatible with Segment's API specification.
 
@@ -454,7 +486,9 @@ src/
 └── utils/
     ├── id-generator.ts   # UUID and message ID generation
     ├── storage.ts        # localStorage abstraction
+    ├── persisted-queue.ts # localStorage queue of events awaiting confirmation
     ├── context.ts        # Browser context building
+    ├── batch.ts          # /v1/batch bodies, split under the keepalive budget
     ├── transport.ts      # HTTP transport layer
     └── index.ts          # Utility exports
 ```
@@ -463,7 +497,8 @@ src/
 
 - **Analytics Class**: Main API interface and event management
 - **Storage Module**: Handles all localStorage operations with configurable keys
-- **Transport Module**: Manages HTTP requests with beacon API and fetch fallback
+- **Transport Module**: Sends with `fetch` and retries, and beacons on page hide
+- **Persisted Queue**: Keeps events until the server confirms them, for replay on the next page load
 - **Context Builder**: Automatically captures browser and page information
 - **ID Generator**: Cryptographically secure UUID generation with Math.random fallback
 - **Configuration**: Centralized config management with intelligent defaults

@@ -16,14 +16,35 @@ import {
   AnalyticsTransport,
   buildContext,
   buildPageProperties,
+  type DeliveryResult,
   generateId,
   generateMessageId,
+  PersistedQueue,
 } from './utils'
+
+function messageIdsOf(events: EventPayload[]): string[] {
+  return events.flatMap((event) => (event.messageId ? [event.messageId] : []))
+}
+
+function uniqueByMessageId(events: EventPayload[]): EventPayload[] {
+  const seen = new Set<string>()
+  return events.filter((event) => {
+    if (!event.messageId) {
+      return true
+    }
+    if (seen.has(event.messageId)) {
+      return false
+    }
+    seen.add(event.messageId)
+    return true
+  })
+}
 
 // Main Analytics class
 class Analytics {
   private config: Required<AnalyticsOptions>
   private storage: AnalyticsStorage
+  private persistedQueue: PersistedQueue
   private transport: AnalyticsTransport
   private userId: string | null = null
   private anonymousId: string
@@ -31,7 +52,11 @@ class Analytics {
   private readyCallbacks: Array<() => void> = []
   private isReady = false
   // Events fired before load() wait here so they go out with its host and write key
-  private queue: EventPayload[] = []
+  private heldEvents: EventPayload[] = []
+  // Message IDs this page is sending, so replays and beacons skip them
+  private sendingIds = new Set<string>()
+  // Message IDs this page has beaconed, so each is beaconed at most once
+  private beaconedIds = new Set<string>()
   private flushTimer: number | null = null
   private isLoaded = false
 
@@ -44,6 +69,9 @@ class Analytics {
       anonymousIdKey: this.config.anonymousIdKey,
       traitsKey: this.config.traitsKey,
     })
+
+    // Every event stays here until the server confirms it
+    this.persistedQueue = new PersistedQueue(`${this.config.storagePrefix}queue`)
 
     // Initialize transport
     this.transport = new AnalyticsTransport({
@@ -68,6 +96,7 @@ class Analytics {
 
     this.isReady = true
     this.processReadyCallbacks()
+    this.listenForPageHide()
   }
 
   // Initialization
@@ -90,9 +119,8 @@ class Analytics {
       retryDelay: this.config.retryDelay,
     })
 
-    // From here on events are sent as they happen; send the ones held until now
-    this.isLoaded = true
-    this.flush()
+    // From here on events are sent as they happen
+    this.release()
   }
 
   ready(callback: () => void): void {
@@ -242,21 +270,12 @@ class Analytics {
 
   // Sends any events still held because they were fired before load()
   flush(): void {
-    if (this.queue.length === 0) {
+    if (this.heldEvents.length === 0) {
       return
     }
 
-    const events = [...this.queue]
-    this.queue = []
-
-    // Clear flush timer (browser only)
-    if (this.flushTimer && typeof window !== 'undefined') {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = null
-    }
-
-    // Send events
-    void this.transport.sendEvents(events)
+    this.clearFlushTimer()
+    void this.deliverBatch(this.takeHeldEvents())
   }
 
   // Private methods
@@ -279,24 +298,132 @@ class Analytics {
    * the default configuration after PRE_LOAD_HOLD_MS.
    */
   private send(payload: EventPayload): void {
-    // Server environments have nothing to hold for; the transport skips sending
-    if (this.isLoaded || typeof window === 'undefined') {
-      void this.transport.sendEvent(payload)
+    // Server environments have nothing to send to
+    if (typeof window === 'undefined') {
       return
     }
 
-    this.queue.push(payload)
+    // Kept until the server confirms it, so it can be replayed if this page closes first
+    this.persistedQueue.add(payload)
+
+    if (this.isLoaded) {
+      void this.deliverEvent(payload)
+      return
+    }
+
+    this.heldEvents.push(payload)
 
     if (this.config.debug) {
-      console.log('[Analytics] Holding event until load():', payload)
+      console.log(`[Analytics] Holding ${payload.type} event until load()`)
     }
 
     if (!this.flushTimer) {
       this.flushTimer = window.setTimeout(() => {
         // load() was never called, so the default configuration is final
-        this.isLoaded = true
-        this.flush()
+        this.release()
       }, PRE_LOAD_HOLD_MS)
+    }
+  }
+
+  /**
+   * Starts sending events as they happen, and sends the held ones together
+   * with any that earlier pages tracked but couldn't confirm, in /v1/batch
+   * requests
+   */
+  private release(): void {
+    this.isLoaded = true
+    this.clearFlushTimer()
+
+    // The queue also holds this page's held events, so it comes first to keep events in order
+    const replayed = this.persistedQueue.read().filter((event) => !this.isSending(event))
+    void this.deliverBatch(uniqueByMessageId([...replayed, ...this.takeHeldEvents()]))
+  }
+
+  private takeHeldEvents(): EventPayload[] {
+    const events = this.heldEvents
+    this.heldEvents = []
+    return events
+  }
+
+  private clearFlushTimer(): void {
+    if (this.flushTimer && typeof window !== 'undefined') {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
+  }
+
+  private deliverEvent(event: EventPayload): Promise<void> {
+    return this.whileSending([event], async () => {
+      this.settle([event], await this.transport.sendEvent(event))
+    })
+  }
+
+  private deliverBatch(events: EventPayload[]): Promise<void> {
+    return this.whileSending(events, () =>
+      this.transport.sendBatch(events, (chunk, result) => this.settle(chunk, result))
+    )
+  }
+
+  private async whileSending(events: EventPayload[], send: () => Promise<void>): Promise<void> {
+    if (events.length === 0) {
+      return
+    }
+
+    const ids = messageIdsOf(events)
+    ids.forEach((id) => this.sendingIds.add(id))
+    try {
+      await send()
+    } finally {
+      ids.forEach((id) => this.sendingIds.delete(id))
+    }
+  }
+
+  // Delivered and rejected events are done; failed ones stay queued for replay
+  private settle(events: EventPayload[], result: DeliveryResult): void {
+    if (result !== 'failed') {
+      this.persistedQueue.remove(messageIdsOf(events))
+    }
+  }
+
+  private isSending(event: EventPayload): boolean {
+    return event.messageId !== undefined && this.sendingIds.has(event.messageId)
+  }
+
+  /**
+   * Beacons the events a closing page would otherwise leave behind: those held
+   * for load() or, once loaded, queued events that aren't in flight, such as
+   * ones that failed. Requests already in flight finish on their own, since
+   * they use keepalive. A beacon reports no status, so its events stay queued
+   * until a later request confirms them, normally on the next page load.
+   */
+  private sendOnPageHide(): void {
+    const candidates = this.isLoaded ? this.persistedQueue.read() : this.heldEvents
+    const events = candidates.filter(
+      (event) => !this.isSending(event) && !(event.messageId && this.beaconedIds.has(event.messageId))
+    )
+    if (events.length === 0) {
+      return
+    }
+
+    messageIdsOf(this.transport.sendBeacon(events)).forEach((id) => this.beaconedIds.add(id))
+  }
+
+  private listenForPageHide(): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    // Mobile browsers often skip `beforeunload` when a tab is backgrounded or
+    // closed; `visibilitychange` and `pagehide` fire reliably.
+    window.addEventListener('pagehide', () => {
+      this.sendOnPageHide()
+    })
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          this.sendOnPageHide()
+        }
+      })
     }
   }
 }
@@ -306,20 +433,6 @@ const analytics = new Analytics()
 
 // Setup global usage (browser only)
 if (typeof window !== 'undefined') {
-  // Send any events still held for load() when the page is hidden or unloaded.
-  // Mobile browsers often skip `beforeunload` when a tab is backgrounded or
-  // closed; `visibilitychange` and `pagehide` fire reliably.
-  window.addEventListener('pagehide', () => {
-    analytics.flush()
-  })
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        analytics.flush()
-      }
-    })
-  }
-
   // Export for global usage
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   ;(window as any).analytics = analytics

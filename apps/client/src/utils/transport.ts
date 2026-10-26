@@ -1,6 +1,8 @@
 // HTTP Transport Utilities
 
-import type { EventPayload } from '../types'
+import type { EventPayload } from '@/types'
+
+import { buildBatchChunks, byteLength, KEEPALIVE_BYTE_LIMIT, serializeEvent } from './batch'
 
 export interface TransportConfig {
   host: string
@@ -12,21 +14,31 @@ export interface TransportConfig {
   retryDelay?: number
 }
 
-export enum TransportError {
-  SERVER_UNAVAILABLE = 'SERVER_UNAVAILABLE',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  TIMEOUT = 'TIMEOUT',
-  INVALID_RESPONSE = 'INVALID_RESPONSE',
-  BEACON_FAILED = 'BEACON_FAILED',
-}
+/**
+ * How sending ended:
+ * - `delivered`: the server answered 2xx
+ * - `rejected`: sending again can't succeed, because the server answered with
+ *   a 4xx other than 429 or the event can't be serialized
+ * - `failed`: every attempt ended in a network error, a timeout, a 429 or a 5xx
+ */
+export type DeliveryResult = 'delivered' | 'rejected' | 'failed'
 
 const TRANSPORT_CONSTANTS = {
   CONTENT_TYPE: 'application/json',
+  BATCH_PATH: '/v1/batch',
   DEFAULT_TIMEOUT: 5000,
   DEFAULT_RETRIES: 2,
   DEFAULT_RETRY_DELAY: 1000,
   LOG_PREFIX: '[Analytics]',
 } as const
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+function describeCount(count: number): string {
+  return count === 1 ? '1 event' : `${count} events`
+}
 
 export class AnalyticsTransport {
   private config: Required<Omit<TransportConfig, 'writeKey'>> & { writeKey?: string }
@@ -54,139 +66,140 @@ export class AnalyticsTransport {
   }
 
   /**
-   * Sends a single event to the analytics endpoint
-   * Safely handles server environments where browser APIs are not available
+   * Sends one event to its own endpoint, such as `/v1/track`
    */
-  async sendEvent(event: EventPayload): Promise<void> {
-    // Skip sending events in server environments
-    if (typeof window === 'undefined') {
-      this.debugLog('Skipping event send in server environment:', event)
-      return
+  async sendEvent(event: EventPayload): Promise<DeliveryResult> {
+    const body = serializeEvent(event)
+    if (body === null) {
+      this.debugError(`Dropping a ${event.type} event that can't be serialized`)
+      return 'rejected'
     }
 
-    const endpoint = this.buildEndpoint(event.type)
-    this.debugLog('Sending event:', { endpoint, data: event })
+    return await this.postWithRetry(`/v1/${event.type}`, body, 1)
+  }
 
+  /**
+   * Sends events to `/v1/batch`, split into bodies under the keepalive budget.
+   * The chunks go one at a time, so the batch never has more than one request
+   * in flight, and `onSettled` reports each chunk's result as it ends.
+   */
+  async sendBatch(
+    events: EventPayload[],
+    onSettled: (events: EventPayload[], result: DeliveryResult) => void
+  ): Promise<void> {
+    const { chunks, unserializable } = buildBatchChunks(events)
+    if (unserializable.length > 0) {
+      this.debugError(`Dropping ${describeCount(unserializable.length)} that can't be serialized`)
+      onSettled(unserializable, 'rejected')
+    }
+
+    for (const chunk of chunks) {
+      onSettled(chunk.events, await this.postWithRetry(TRANSPORT_CONSTANTS.BATCH_PATH, chunk.body, chunk.events.length))
+    }
+  }
+
+  /**
+   * Hands events to navigator.sendBeacon as `/v1/batch` requests, for when the
+   * page is being hidden or unloaded and a fetch can't be awaited. A beacon
+   * can't carry headers, so the write key goes in the body, and it reports no
+   * status. Returns the events the browser accepted for sending.
+   */
+  sendBeacon(events: EventPayload[]): EventPayload[] {
+    if (!this.config.useBeacon || !this.isBeaconAvailable()) {
+      return []
+    }
+
+    const { chunks } = buildBatchChunks(events, this.config.writeKey)
+    const endpoint = this.buildEndpoint(TRANSPORT_CONSTANTS.BATCH_PATH)
+    const accepted: EventPayload[] = []
+
+    for (const chunk of chunks) {
+      if (this.beacon(endpoint, chunk.body)) {
+        accepted.push(...chunk.events)
+      } else {
+        this.debugError(`The browser refused a beacon of ${describeCount(chunk.events.length)}`)
+      }
+    }
+
+    return accepted
+  }
+
+  private beacon(endpoint: string, body: string): boolean {
     try {
-      // Add writeKey to payload if configured (needed for beacon which can't send headers)
-      const payload = this.config.writeKey ? { ...event, writeKey: this.config.writeKey } : event
-      // Serialize inside the try: properties holding a BigInt or a circular
-      // reference throw here, and callers don't await this promise
-      const data = JSON.stringify(payload)
-      await this.sendWithRetry(endpoint, data)
-    } catch (error) {
-      this.debugError('Failed to send event after retries:', error)
-      // Silently fail in production to avoid breaking user experience
+      const blob = new Blob([body], { type: TRANSPORT_CONSTANTS.CONTENT_TYPE })
+      return navigator.sendBeacon(endpoint, blob)
+    } catch {
+      // Some browsers throw rather than return false
+      return false
     }
   }
 
   /**
-   * Sends multiple events with improved batching
+   * POSTs a body, retrying network errors, timeouts, 429s and 5xxs with
+   * exponential backoff
    */
-  async sendEvents(events: EventPayload[]): Promise<void> {
-    // Process events in parallel for better performance
-    const promises = events.map((event) => this.sendEvent(event))
-    await Promise.allSettled(promises)
-  }
-
-  /**
-   * Send with retry logic and exponential backoff
-   */
-  private async sendWithRetry(endpoint: string, data: string): Promise<void> {
-    let lastError: Error | null = null
+  private async postWithRetry(path: string, body: string, eventCount: number): Promise<DeliveryResult> {
+    const events = describeCount(eventCount)
+    let lastFailure = ''
 
     for (let attempt = 0; attempt <= this.config.retries; attempt++) {
-      try {
-        await this.attemptSend(endpoint, data)
-        return // Success
-      } catch (error) {
-        lastError = error as Error
-
-        if (attempt < this.config.retries) {
-          const delay = this.config.retryDelay * Math.pow(2, attempt) // Exponential backoff
-          this.debugLog(`Attempt ${attempt + 1} failed, retrying in ${delay}ms:`, error)
-          await this.sleep(delay)
-        }
-      }
-    }
-
-    throw lastError || new Error('Failed to send after retries')
-  }
-
-  /**
-   * Attempt to send using beacon or fetch
-   */
-  private async attemptSend(endpoint: string, data: string): Promise<void> {
-    // Try sendBeacon first if enabled and available
-    if (this.config.useBeacon && this.isBeaconAvailable()) {
-      const success = this.sendViaBeacon(endpoint, data)
-      if (success) {
-        return
+      if (attempt > 0) {
+        const delay = this.config.retryDelay * Math.pow(2, attempt - 1)
+        this.debugLog(`Sending ${events} to ${path} failed (${lastFailure}), retrying in ${delay}ms`)
+        await this.sleep(delay)
       }
 
-      this.debugLog('sendBeacon failed, falling back to fetch')
+      const status = await this.post(this.buildEndpoint(path), body)
+      if (status !== null && status >= 200 && status < 300) {
+        this.debugLog(`Delivered ${events} to ${path}`)
+        return 'delivered'
+      }
+      if (status !== null && !isRetryableStatus(status)) {
+        this.debugError(`${path} rejected ${events} with HTTP ${status}`)
+        return 'rejected'
+      }
+      lastFailure = status === null ? 'network error or timeout' : `HTTP ${status}`
     }
 
-    // Fallback to fetch
-    await this.sendViaFetch(endpoint, data)
+    this.debugError(`Could not deliver ${events} to ${path} (${lastFailure}); keeping them for replay`)
+    return 'failed'
   }
 
   /**
-   * Send via navigator.sendBeacon
+   * Sends a body with fetch and returns the response status, or null when no
+   * response arrived: a network error, a timeout, or a keepalive request the
+   * browser refused because too many were in flight
    */
-  private sendViaBeacon(endpoint: string, data: string): boolean {
-    if (!this.isBeaconAvailable()) {
-      throw new Error(TransportError.BEACON_FAILED)
-    }
-
-    const blob = new Blob([data], { type: TRANSPORT_CONSTANTS.CONTENT_TYPE })
-    return navigator.sendBeacon(endpoint, blob)
-  }
-
-  /**
-   * Send via fetch with timeout and proper error handling
-   * Includes Authorization header when writeKey is configured
-   */
-  private async sendViaFetch(endpoint: string, data: string): Promise<void> {
+  private async post(endpoint: string, body: string): Promise<number | null> {
     if (typeof fetch === 'undefined') {
-      throw new TypeError(TransportError.SERVER_UNAVAILABLE)
+      return null
     }
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout)
 
-    // Build headers with optional Authorization
-    const headers: Record<string, string> = {
-      'Content-Type': TRANSPORT_CONSTANTS.CONTENT_TYPE,
-    }
-    const authHeader = this.getAuthHeader()
-    if (authHeader) {
-      headers['Authorization'] = authHeader
-    }
-
     try {
+      // Build headers with optional Authorization
+      const headers: Record<string, string> = {
+        'Content-Type': TRANSPORT_CONSTANTS.CONTENT_TYPE,
+      }
+      const authHeader = this.getAuthHeader()
+      if (authHeader) {
+        headers['Authorization'] = authHeader
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: data,
-        keepalive: true,
+        body,
+        // Lets the request finish if the page unloads; browsers refuse keepalive bodies over 64 KB
+        keepalive: byteLength(body) <= KEEPALIVE_BYTE_LIMIT,
         credentials: 'omit', // Don't send credentials for analytics requests
         signal: controller.signal,
       })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(TransportError.TIMEOUT)
-        }
-        if (error.message.includes('fetch')) {
-          throw new Error(TransportError.NETWORK_ERROR)
-        }
-      }
-      throw error
+      return response.status
+    } catch {
+      return null
     } finally {
       clearTimeout(timeoutId)
     }
@@ -199,11 +212,8 @@ export class AnalyticsTransport {
     return typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function'
   }
 
-  /**
-   * Build endpoint URL for event type
-   */
-  private buildEndpoint(eventType: string): string {
-    return `${this.config.host}/v1/${eventType}`
+  private buildEndpoint(path: string): string {
+    return `${this.config.host}${path}`
   }
 
   /**
@@ -214,20 +224,20 @@ export class AnalyticsTransport {
   }
 
   /**
-   * Debug logging utility
+   * Debug logging utility. Never pass event payloads: they can hold personal data.
    */
-  private debugLog(message: string, ...args: unknown[]): void {
+  private debugLog(message: string): void {
     if (this.config.debug) {
-      console.log(`${TRANSPORT_CONSTANTS.LOG_PREFIX} ${message}`, ...args)
+      console.log(`${TRANSPORT_CONSTANTS.LOG_PREFIX} ${message}`)
     }
   }
 
   /**
-   * Debug error logging utility
+   * Debug error logging utility. Never pass event payloads: they can hold personal data.
    */
-  private debugError(message: string, ...args: unknown[]): void {
+  private debugError(message: string): void {
     if (this.config.debug) {
-      console.error(`${TRANSPORT_CONSTANTS.LOG_PREFIX} ${message}`, ...args)
+      console.error(`${TRANSPORT_CONSTANTS.LOG_PREFIX} ${message}`)
     }
   }
 }

@@ -269,7 +269,27 @@ describe('TableManager', () => {
       await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', rows)
 
       expect(tableCreateSpy).toHaveBeenCalled()
-      expect(tableInsertSpy).toHaveBeenCalledWith(rows)
+      expect(tableInsertSpy).toHaveBeenCalledWith(
+        [
+          { insertId: 'test1', json: rows[0] },
+          { insertId: 'test2', json: rows[1] },
+        ],
+        { raw: true }
+      )
+    })
+
+    it("streams each row with its id, the event's messageId, as the insertId BigQuery dedupes on", async () => {
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([false])
+
+      await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', [
+        { id: 'message-1', event: 'Test Event' },
+        { event: 'Row Without Id' },
+      ])
+
+      const [insertedRows, options] = tableInsertSpy.mock.calls[0] as [Array<{ insertId?: string }>, unknown]
+      expect(options).toEqual({ raw: true })
+      expect(insertedRows.map((row) => row.insertId)).toEqual(['message-1', undefined])
     })
 
     it('should fit values to existing column types instead of failing the insert', async () => {
@@ -291,7 +311,9 @@ describe('TableManager', () => {
       ])
 
       expect(tableSetMetadataSpy).not.toHaveBeenCalled()
-      expect(tableInsertSpy).toHaveBeenCalledWith([{ id: 'test1', label: '7' }])
+      expect(tableInsertSpy).toHaveBeenCalledWith([{ insertId: 'test1', json: { id: 'test1', label: '7' } }], {
+        raw: true,
+      })
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('test-dataset.test-table: quantity'))
     })
 

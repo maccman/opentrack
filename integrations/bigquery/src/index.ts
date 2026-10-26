@@ -10,7 +10,7 @@ import {
   isStreamingBufferError,
   orderTablesForDeletion,
 } from './deletion'
-import { getTableNames, TableManager, transformToRow } from './utils'
+import { getTableNames, RAW_INSERT_OPTIONS, TableManager, toInsertRows, transformToRow } from './utils'
 
 type Payload = TrackPayload | IdentifyPayload | PagePayload | GroupPayload | AliasPayload
 
@@ -78,7 +78,10 @@ export class BigQueryIntegration implements Integration {
       await this.tableManager.insertWithAutoSchema(this.config.datasetId, tableName, tableType, [row])
     } else {
       // Direct insertion, will fail if schema is incorrect
-      await this.client.dataset(this.config.datasetId).table(tableName).insert([row])
+      await this.client
+        .dataset(this.config.datasetId)
+        .table(tableName)
+        .insert(toInsertRows([row]), RAW_INSERT_OPTIONS)
     }
   }
 

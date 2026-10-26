@@ -1,6 +1,7 @@
 import type { BigQuery, TableSchema } from '@google-cloud/bigquery'
 
 import { CACHE_CONFIG, DATASET_CONFIG } from './constants'
+import { RAW_INSERT_OPTIONS, toInsertRows } from './insert-rows'
 import { coerceRowToSchema } from './row-coercer'
 import { generateSchemaFromRow, getBaseSchemaForTable, mergeSchemas } from './schema-manager'
 
@@ -304,7 +305,7 @@ export class TableManager {
 
     // Insert the data
     const table = this.client.dataset(datasetId).table(tableId)
-    await table.insert(coercedRows)
+    await table.insert(toInsertRows(coercedRows), RAW_INSERT_OPTIONS)
   }
 
   /**
