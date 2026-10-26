@@ -17,35 +17,14 @@ import {
   buildContext,
   buildPageProperties,
   type DeliveryCallbacks,
-  describeDestination,
   generateId,
   generateMessageId,
-  PersistedQueue,
 } from './utils'
-
-function messageIdsOf(events: EventPayload[]): string[] {
-  return events.flatMap((event) => (event.messageId ? [event.messageId] : []))
-}
-
-function uniqueByMessageId(events: EventPayload[]): EventPayload[] {
-  const seen = new Set<string>()
-  return events.filter((event) => {
-    if (!event.messageId) {
-      return true
-    }
-    if (seen.has(event.messageId)) {
-      return false
-    }
-    seen.add(event.messageId)
-    return true
-  })
-}
 
 // Main Analytics class
 class Analytics {
   private config: Required<AnalyticsOptions>
   private storage: AnalyticsStorage
-  private persistedQueue: PersistedQueue
   private transport: AnalyticsTransport
   private userId: string | null = null
   private anonymousId: string
@@ -54,12 +33,10 @@ class Analytics {
   private isReady = false
   // Events fired before load() wait here so they go out with its host and write key
   private heldEvents: EventPayload[] = []
-  // Message IDs this page is still delivering, retries included, so a replay doesn't send them twice
-  private pendingIds = new Set<string>()
-  // Message IDs with a request in flight, which keepalive lets finish if the page unloads
-  private inFlightIds = new Set<string>()
-  // Message IDs this page has beaconed, so each is beaconed at most once
-  private beaconedIds = new Set<string>()
+  // Events sent but not yet delivered or refused, including ones that failed every retry
+  private unsentEvents = new Set<EventPayload>()
+  // Events with a request in flight, which keepalive lets finish if the page unloads
+  private inFlightEvents = new Set<EventPayload>()
   private flushTimer: number | null = null
   private isLoaded = false
 
@@ -72,9 +49,6 @@ class Analytics {
       anonymousIdKey: this.config.anonymousIdKey,
       traitsKey: this.config.traitsKey,
     })
-
-    // Every event stays here until the server confirms it. load() can move it to another storagePrefix
-    this.persistedQueue = new PersistedQueue(this.queueNamespace())
 
     // Initialize transport
     this.transport = new AnalyticsTransport({
@@ -122,9 +96,7 @@ class Analytics {
       retryDelay: this.config.retryDelay,
     })
 
-    this.moveQueueTo(this.queueNamespace())
-
-    // From here on events are sent as they happen
+    // From here on events are sent as they happen; send the ones held until now
     this.release()
   }
 
@@ -308,10 +280,6 @@ class Analytics {
       return
     }
 
-    // Kept until the server confirms it, so it can be replayed if this page closes first. Events
-    // held for load() get their destination when it runs
-    this.persistedQueue.add(payload, this.isLoaded ? this.destination() : null)
-
     if (this.isLoaded) {
       void this.deliverEvent(payload)
       return
@@ -331,45 +299,11 @@ class Analytics {
     }
   }
 
-  /**
-   * Starts sending events as they happen, and sends the held ones together
-   * with any that earlier pages tracked but couldn't confirm, in /v1/batch
-   * requests
-   */
+  // Starts sending events as they happen, and sends the held ones in /v1/batch requests
   private release(): void {
     this.isLoaded = true
     this.clearFlushTimer()
-
-    // Events still waiting for load(), this page's or a closed page's, go where this page sends.
-    // The queue then holds the held events too, so it comes first to keep events in order
-    const destination = this.destination()
-    this.persistedQueue.claim(destination)
-    const replayed = this.persistedQueue.read(destination).filter((event) => !this.isPending(event))
-    void this.deliverBatch(uniqueByMessageId([...replayed, ...this.takeHeldEvents()]))
-  }
-
-  private destination(): string {
-    return describeDestination(this.config.host, this.config.writeKey)
-  }
-
-  private queueNamespace(): string {
-    return `${this.config.storagePrefix}queue`
-  }
-
-  /**
-   * Moves the queue to the storagePrefix load() configured. The singleton is
-   * created before load() runs, so events held for it start in the default
-   * namespace; events other pages left there stay for pages that use it.
-   */
-  private moveQueueTo(namespace: string): void {
-    if (namespace === this.persistedQueue.namespace) {
-      return
-    }
-
-    const queue = new PersistedQueue(namespace)
-    this.persistedQueue.remove(messageIdsOf(this.heldEvents))
-    this.heldEvents.forEach((event) => queue.add(event, null))
-    this.persistedQueue = queue
+    void this.deliverBatch(this.takeHeldEvents())
   }
 
   private takeHeldEvents(): EventPayload[] {
@@ -394,59 +328,46 @@ class Analytics {
   }
 
   /**
-   * Tracks events while the transport sends them: pending until each settles,
-   * and in flight only while a request carries them
+   * Tracks events while the transport sends them: unsent until delivered or
+   * refused, and in flight only while a request carries them
    */
   private async deliver(events: EventPayload[], send: (callbacks: DeliveryCallbacks) => Promise<void>): Promise<void> {
     if (events.length === 0) {
       return
     }
 
-    // Settled events leave the queue they were sent from, even if load() moves it meanwhile
-    const queue = this.persistedQueue
-    const ids = messageIdsOf(events)
-    ids.forEach((id) => this.pendingIds.add(id))
-
-    try {
-      await send({
-        onRequestStart: (requestEvents) => messageIdsOf(requestEvents).forEach((id) => this.inFlightIds.add(id)),
-        onRequestEnd: (requestEvents) => messageIdsOf(requestEvents).forEach((id) => this.inFlightIds.delete(id)),
-        onSettled: (settledEvents, result) => {
-          const settledIds = messageIdsOf(settledEvents)
-          settledIds.forEach((id) => this.pendingIds.delete(id))
-          // Delivered and rejected events are done; failed ones stay queued for replay
-          if (result !== 'failed') {
-            queue.remove(settledIds)
-          }
-        },
-      })
-    } finally {
-      ids.forEach((id) => this.pendingIds.delete(id))
-    }
-  }
-
-  private isPending(event: EventPayload): boolean {
-    return event.messageId !== undefined && this.pendingIds.has(event.messageId)
+    events.forEach((event) => this.unsentEvents.add(event))
+    await send({
+      onRequestStart: (requestEvents) => requestEvents.forEach((event) => this.inFlightEvents.add(event)),
+      onRequestEnd: (requestEvents) => requestEvents.forEach((event) => this.inFlightEvents.delete(event)),
+      onSettled: (settledEvents, result) => {
+        // Failed events stay unsent, for a beacon when the page is hidden
+        if (result !== 'failed') {
+          settledEvents.forEach((event) => this.unsentEvents.delete(event))
+        }
+      },
+    })
   }
 
   /**
    * Beacons the events a closing page would otherwise leave behind: those held
-   * for load() or, once loaded, queued events without a request in flight,
+   * for load() or, once loaded, unsent events without a request in flight,
    * such as ones that failed, are waiting to retry, or are in a batch chunk
    * not sent yet. Requests already in flight finish on their own, since they
-   * use keepalive. A beacon reports no status, so its events stay queued until
-   * a later request confirms them, normally on the next page load.
+   * use keepalive. A beacon reports no status, so once the browser accepts it
+   * its events count as sent.
    */
   private sendOnPageHide(): void {
-    const candidates = this.isLoaded ? this.persistedQueue.read(this.destination()) : this.heldEvents
-    const events = candidates.filter(
-      (event) => !(event.messageId && (this.inFlightIds.has(event.messageId) || this.beaconedIds.has(event.messageId)))
-    )
+    const events = this.isLoaded
+      ? [...this.unsentEvents].filter((event) => !this.inFlightEvents.has(event))
+      : this.heldEvents
     if (events.length === 0) {
       return
     }
 
-    messageIdsOf(this.transport.sendBeacon(events)).forEach((id) => this.beaconedIds.add(id))
+    const accepted = new Set(this.transport.sendBeacon(events))
+    accepted.forEach((event) => this.unsentEvents.delete(event))
+    this.heldEvents = this.heldEvents.filter((event) => !accepted.has(event))
   }
 
   private listenForPageHide(): void {

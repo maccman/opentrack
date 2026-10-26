@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createFakeBrowser } from './fake-browser'
-
-async function openPage() {
-  return await createFakeBrowser().openPage()
-}
+import { openPage } from './fake-browser'
 
 afterEach(() => {
   vi.useRealTimers()

@@ -8,7 +8,7 @@ A Segment-compatible client-side analytics library for OpenTrack. This library p
 - **Universal Support**: Works in browser, Node.js, and SSR environments (Next.js, Astro, etc.)
 - **Multiple Build Formats**: ESM, CommonJS, UMD, and IIFE builds included
 - **TypeScript Support**: Full TypeScript definitions included
-- **Confirmed Delivery**: Sends with `fetch`, retries network errors, 429s and 5xxs, and keeps unconfirmed events in localStorage to replay on the next page load
+- **Confirmed Delivery**: Sends with `fetch`, checks the response, and retries network errors, 429s and 5xxs
 - **Automatic Identity Management**: Persists user identity across sessions using localStorage
 - **Manual Page Tracking**: Call `analytics.page()` explicitly to track page views
 - **Immediate Delivery**: Each event is sent as it happens; events fired before `load()` are held until it runs
@@ -377,24 +377,17 @@ configuration after 10 seconds.
 - **Confirmation and retries.** An event counts as delivered only when the server answers 2xx. Network errors,
   timeouts, 429s and 5xxs are retried `retries` times, waiting `retryDelay` and then twice as long each time. Any
   other 4xx means a resend would be refused too, so the event is dropped.
-- **Replay.** Every event is written to localStorage when it's tracked, as its own record under
-  `<storagePrefix>queue:<messageId>` (so the site's tabs can't overwrite each other's), and removed once it's
-  delivered or refused. Events that are held, in flight or failing when the page closes stay there, and the next
-  page load sends them after `load()` runs, with their original `messageId` and `timestamp`. Each record remembers
-  the `host` and write key it was meant for, and a page only replays records for its own. Events tracked before
-  `load()` get the configuration of the page whose `load()` sends them; if their page closed first, the next page
-  using the default `storagePrefix` claims them. The queue keeps at most the newest 100 events and 256 KB, and
-  forgets events after 7 days. Without localStorage, events are still sent, just never replayed. Because a replayed
-  event may already have arrived (its response was lost when the page closed), destinations should dedupe on
-  `messageId`.
-- **Batches.** The events released at `load()`, together with replayed ones, go to `/v1/batch`, split into
-  requests under 60 KB and sent one at a time, which keeps them within the 64 KB browsers allow for keepalive
-  requests and beacons in flight.
+- **Batches.** The events released at `load()` go to `/v1/batch`, split into requests under 60 KB and sent one at a
+  time, which keeps them within the 64 KB browsers allow for keepalive requests and beacons in flight.
 - **Page hide.** When the page is hidden (`visibilitychange`) or unloaded (`pagehide`), unsent events (held for
   `load()`, failed, waiting to retry, or in a batch chunk not sent yet) are sent with `navigator.sendBeacon` to
   `/v1/batch`, with the write key in the body because beacons can't carry headers. Requests already in flight are
-  left to finish. A beacon reports no status, so its events stay queued for replay until a later request confirms
-  them. Set `useBeacon: false` to skip beacons and rely on replay alone.
+  left to finish. A beacon reports no status, so once the browser accepts one its events count as sent; if it's
+  refused, the next page hide tries again. Events still unsent when the page closes without a usable beacon are
+  lost. Set `useBeacon: false` to skip beacons.
+- **Duplicates.** An event can reach the server twice, for example when a response is lost and the request is
+  retried, or when the page is hidden during a retry wait and then comes back. Every copy keeps its `messageId`, so
+  destinations can dedupe on it; the BigQuery destination does, within about a minute.
 
 With `debug: true`, the client logs each delivery, retry and failure with the endpoint, event count and HTTP status;
 it never logs event payloads.
@@ -473,7 +466,7 @@ This library sends events to the following OpenTrack endpoints:
 - `POST /v1/page` - For page events
 - `POST /v1/group` - For group events
 - `POST /v1/alias` - For alias events
-- `POST /v1/batch` - For events released at `load()`, replayed from an earlier page, or beaconed on page hide
+- `POST /v1/batch` - For events released at `load()` or beaconed on page hide
 
 All payloads are fully compatible with Segment's API specification.
 
@@ -489,7 +482,6 @@ src/
 └── utils/
     ├── id-generator.ts   # UUID and message ID generation
     ├── storage.ts        # localStorage abstraction
-    ├── persisted-queue.ts # localStorage queue of events awaiting confirmation
     ├── context.ts        # Browser context building
     ├── batch.ts          # /v1/batch bodies, split under the keepalive budget
     ├── transport.ts      # HTTP transport layer
@@ -501,7 +493,6 @@ src/
 - **Analytics Class**: Main API interface and event management
 - **Storage Module**: Handles all localStorage operations with configurable keys
 - **Transport Module**: Sends with `fetch` and retries, and beacons on page hide
-- **Persisted Queue**: Keeps events until the server confirms them, for replay on the next page load
 - **Context Builder**: Automatically captures browser and page information
 - **ID Generator**: Cryptographically secure UUID generation with Math.random fallback
 - **Configuration**: Centralized config management with intelligent defaults

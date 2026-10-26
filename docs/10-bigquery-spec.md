@@ -79,12 +79,12 @@ All tables include these standard Segment columns:
 ### Deduplication
 
 The event's `messageId` is the dedupe key, stored in the `id` column. The same event can arrive more
-than once: the browser client retries failed requests and replays events it could not confirm on a
-later page load, and other senders may retry too. Each row is streamed with the event's `messageId` as
+than once: the browser client retries failed requests, which repeats an event whose response was lost,
+and other senders may retry too. Each row is streamed with the event's `messageId` as
 the BigQuery `insertId`, so BigQuery drops a repeat of a row it received shortly before.
 
 That dedupe is **best effort**. BigQuery documents it as covering repeats within up to one minute, and
-even then it might keep both rows, so a replay a day later is always inserted again. Which of two
+even then it might keep both rows, so a repeat that arrives more than a minute later is always inserted again. Which of two
 deduped rows survives is not defined; they differ only in load-time columns such as `received_at`.
 Queries that need exactly one row per event should dedupe on `id`:
 

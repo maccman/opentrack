@@ -27,50 +27,12 @@ export interface FakePage {
   /** Every event sent with fetch, unpacking batches */
   sentEvents: () => Array<Record<string, unknown>>
   beaconCount: () => number
+  /** Makes sendBeacon return false, as browsers do when too many bytes are in flight */
+  refuseBeacons: (refuse: boolean) => void
   beacons: () => Promise<Array<{ url: string; body: Record<string, unknown> }>>
   fireWindowEvent: (name: string) => void
   fireDocumentEvent: (name: string) => void
   setVisibility: (state: 'visible' | 'hidden') => void
-}
-
-export interface FakeBrowser {
-  store: Map<string, string>
-  openPage: () => Promise<FakePage>
-  /** Names of the events waiting in a persisted queue, oldest first */
-  queuedEventNames: (namespace?: string) => unknown[]
-  /** Bytes the queue's records take in storage, keys included */
-  queuedBytes: (namespace?: string) => number
-}
-
-export const DEFAULT_QUEUE_NAMESPACE = 'analytics_queue'
-
-/** A localStorage backed by a map, which tests can read directly */
-export function createFakeStorage(store: Map<string, string>): Storage {
-  return {
-    get length() {
-      return store.size
-    },
-    key: (index: number) => [...store.keys()][index] ?? null,
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value)
-    },
-    removeItem: (key: string) => {
-      store.delete(key)
-    },
-    clear: () => store.clear(),
-  }
-}
-
-function queueRecords(store: Map<string, string>, namespace: string) {
-  return [...store.entries()]
-    .filter(([key]) => key.startsWith(`${namespace}:`))
-    .map(([key, value]) => ({
-      key,
-      value,
-      entry: JSON.parse(value) as { storedAt: number; sequence: number; event: Record<string, unknown> },
-    }))
-    .sort((a, b) => a.entry.storedAt - b.entry.storedAt || a.entry.sequence - b.entry.sequence)
 }
 
 /** Lets pending promise callbacks, such as fetch responses, run */
@@ -90,13 +52,15 @@ function addListener(listeners: Map<string, Listener[]>) {
  * Loads a fresh analytics singleton against minimal browser globals, as a new
  * page would, and records every fetch and beacon it sends
  */
-async function openPage(): Promise<FakePage> {
+export async function openPage(): Promise<FakePage> {
+  const store = new Map<string, string>()
   const windowListeners = new Map<string, Listener[]>()
   const documentListeners = new Map<string, Listener[]>()
   const requests: SentRequest[] = []
   const beaconBlobs: Array<{ url: string; blob: Blob }> = []
   const responses: FakeResponse[] = []
   let defaultResponse: FakeResponse = 200
+  let isRefusingBeacons = false
 
   const fakeDocument = {
     title: 'Home',
@@ -112,9 +76,17 @@ async function openPage(): Promise<FakePage> {
     addEventListener: addListener(windowListeners),
   })
   vi.stubGlobal('document', fakeDocument)
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  })
   vi.stubGlobal('navigator', {
     userAgent: 'test-agent',
     sendBeacon: (url: string, blob: Blob) => {
+      if (isRefusingBeacons) {
+        return false
+      }
       beaconBlobs.push({ url, blob })
       return true
     },
@@ -157,6 +129,9 @@ async function openPage(): Promise<FakePage> {
         request.url.endsWith('/v1/batch') ? (request.body.batch as Array<Record<string, unknown>>) : [request.body]
       ),
     beaconCount: () => beaconBlobs.length,
+    refuseBeacons: (refuse) => {
+      isRefusingBeacons = refuse
+    },
     beacons: async () =>
       await Promise.all(
         beaconBlobs.map(async ({ url, blob }) => ({
@@ -169,27 +144,5 @@ async function openPage(): Promise<FakePage> {
     setVisibility: (state) => {
       fakeDocument.visibilityState = state
     },
-  }
-}
-
-/**
- * A browser whose localStorage outlives page loads, so a test can close one
- * page and open the next
- */
-export function createFakeBrowser(): FakeBrowser {
-  const store = new Map<string, string>()
-  vi.stubGlobal('localStorage', createFakeStorage(store))
-  const encoder = new TextEncoder()
-
-  return {
-    store,
-    openPage,
-    queuedEventNames: (namespace = DEFAULT_QUEUE_NAMESPACE) =>
-      queueRecords(store, namespace).map(({ entry }) => entry.event.event ?? entry.event.name),
-    queuedBytes: (namespace = DEFAULT_QUEUE_NAMESPACE) =>
-      queueRecords(store, namespace).reduce(
-        (sum, { key, value }) => sum + encoder.encode(key).byteLength + encoder.encode(value).byteLength,
-        0
-      ),
   }
 }

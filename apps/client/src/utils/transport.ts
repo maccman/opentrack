@@ -179,7 +179,7 @@ export class AnalyticsTransport {
       lastFailure = status === null ? 'network error or timeout' : `HTTP ${status}`
     }
 
-    this.debugError(`Could not deliver ${count} to ${path} (${lastFailure}); keeping them for replay`)
+    this.debugError(`Could not deliver ${count} to ${path} (${lastFailure}); a beacon will try when the page is hidden`)
     return 'failed'
   }
 
