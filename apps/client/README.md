@@ -11,7 +11,7 @@ A Segment-compatible client-side analytics library for OpenTrack. This library p
 - **Browser Beacon API**: Uses `navigator.sendBeacon()` for reliable event delivery
 - **Automatic Identity Management**: Persists user identity across sessions using localStorage
 - **Manual Page Tracking**: Call `analytics.page()` explicitly to track page views
-- **Event Queuing**: Automatic batching and flushing of events
+- **Immediate Delivery**: Each event is sent as it happens; events fired before `load()` are held until it runs
 - **Modular Architecture**: Clean separation of concerns with utility modules
 - **Configurable Storage**: Customizable localStorage keys and prefixes
 - **Cryptographically Secure**: Uses `crypto.getRandomValues()` for secure ID generation
@@ -335,8 +335,6 @@ analytics.alias('user-123', 'anonymous-456')
 ```javascript
 analytics.load('your-write-key', {
   host: 'https://your-opentrack-instance.com', // Your OpenTrack endpoint
-  flushAt: 20, // Flush when queue reaches this size
-  flushInterval: 10000, // Flush interval in milliseconds
   debug: false, // Enable debug logging
 
   // Storage configuration
@@ -353,8 +351,8 @@ analytics.load('your-write-key', {
 | ---------------- | ------- | -------------------------- | ---------------------------------------------- |
 | `host`           | string  | `'/'`                      | Your OpenTrack instance URL                    |
 | `writeKey`       | string  | `''`                       | Write key for authentication                   |
-| `flushAt`        | number  | `20`                       | Number of events to queue before auto-flushing |
-| `flushInterval`  | number  | `10000`                    | Time in milliseconds between auto-flushes      |
+| `flushAt`        | number  | `20`                       | Deprecated, no effect: events are sent at once |
+| `flushInterval`  | number  | `10000`                    | Deprecated, no effect: events are sent at once |
 | `debug`          | boolean | `false`                    | Enable console logging for debugging           |
 | `storagePrefix`  | string  | `'analytics_'`             | Prefix for localStorage keys                   |
 | `userIdKey`      | string  | `'analytics_user_id'`      | localStorage key for user ID                   |
@@ -362,6 +360,10 @@ analytics.load('your-write-key', {
 | `traitsKey`      | string  | `'analytics_traits'`       | localStorage key for user traits               |
 
 **Note:** If you provide a custom `storagePrefix`, the individual key names will be automatically updated unless explicitly overridden.
+
+#### Event Delivery
+
+Each event is sent as soon as it's tracked, as its own request (via `navigator.sendBeacon`, falling back to `fetch`). Events tracked before `load()` is called are held so they use its `host` and write key, and are sent when `load()` runs. If `load()` is never called, held events are sent with the default configuration after 10 seconds, or sooner if the page is hidden or closed.
 
 ### Utility Methods
 
@@ -375,7 +377,7 @@ console.log(user.traits()) // User traits
 // Reset user identity
 analytics.reset()
 
-// Manually flush events
+// Send any events still held because they were tracked before load()
 analytics.flush()
 
 // Wait for library to be ready

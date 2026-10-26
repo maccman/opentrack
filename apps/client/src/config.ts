@@ -5,8 +5,8 @@ import type { AnalyticsOptions } from './types'
 export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   writeKey: '', // Not used
   host: '', // Defaults to the current domain
-  flushAt: 20, // Flush after 20 events
-  flushInterval: 10000, // Flush every 10 seconds
+  flushAt: 20, // Deprecated: events are sent as they happen
+  flushInterval: 10000, // Deprecated: events are sent as they happen
   debug: false, // Debug mode
   storagePrefix: 'analytics_', // Prefix for localStorage keys
   userIdKey: 'analytics_user_id', // localStorage key for user ID
@@ -17,6 +17,14 @@ export const DEFAULT_CONFIG: Required<AnalyticsOptions> = {
   retries: 2, // 2 retry attempts
   retryDelay: 1000, // 1 second base delay for retries
 }
+
+/**
+ * How long events fired before load() are held when load() is never called,
+ * after which they're sent with the default configuration. It is fixed because
+ * options only arrive through load(). Erring long is safe: held events are also
+ * sent when the page is hidden or unloaded.
+ */
+export const PRE_LOAD_HOLD_MS = 10000
 
 /**
  * Merges user options with defaults

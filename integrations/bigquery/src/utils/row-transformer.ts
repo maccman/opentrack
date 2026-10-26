@@ -97,6 +97,10 @@ function addTypeSpecificFields(row: Record<string, unknown>, payload: Payload): 
         row.name = payload.name
       }
 
+      if (payload.category) {
+        row.category = payload.category
+      }
+
       if (payload.properties) {
         const flattenedProps = flattenObject(payload.properties)
         addFlattenedFields(row, flattenedProps)

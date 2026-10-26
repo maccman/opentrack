@@ -169,6 +169,12 @@ describe('WebhookTransformer', () => {
       })
     })
 
+    it('should include the page category', () => {
+      const result = WebhookTransformer.transform({ ...createPagePayload(), category: 'Docs' })
+
+      expect(result.data.category).toBe('Docs')
+    })
+
     it('should transform group payload correctly', () => {
       const payload = createGroupPayload()
       const result = WebhookTransformer.transform(payload)

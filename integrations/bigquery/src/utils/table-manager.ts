@@ -1,6 +1,7 @@
 import type { BigQuery, TableSchema } from '@google-cloud/bigquery'
 
 import { CACHE_CONFIG, DATASET_CONFIG } from './constants'
+import { coerceRowToSchema } from './row-coercer'
 import { generateSchemaFromRow, getBaseSchemaForTable, mergeSchemas } from './schema-manager'
 
 /**
@@ -250,7 +251,18 @@ export class TableManager {
       await this.createTable(datasetId, tableId, tableType, sampleRow)
     } else if (tableInfo.schema) {
       // Update schema if needed
-      await this.updateTableSchema(datasetId, tableId, sampleRow, tableInfo.schema)
+      try {
+        await this.updateTableSchema(datasetId, tableId, sampleRow, tableInfo.schema)
+      } catch (error) {
+        // The cached schema may be stale (another instance added columns since it
+        // was cached), so retry once against the table's live schema
+        this.clearCache(datasetId, tableId)
+        const liveTableInfo = await this.getTableInfo(datasetId, tableId)
+        if (!liveTableInfo.schema) {
+          throw error
+        }
+        await this.updateTableSchema(datasetId, tableId, sampleRow, liveTableInfo.schema)
+      }
     }
   }
 
@@ -277,9 +289,22 @@ export class TableManager {
     // Ensure table is ready
     await this.ensureTableReady(datasetId, tableId, tableType, sampleRow)
 
+    // Fit values to the existing column types; ensureTableReady left the schema cached
+    const { schema } = await this.getTableInfo(datasetId, tableId)
+    const coercedRows = rows.map((row) => {
+      const { row: coercedRow, droppedColumns } = coerceRowToSchema(row, schema ?? {})
+      if (droppedColumns.length > 0) {
+        // Column names only: the values may hold personal data
+        console.warn(
+          `Dropped values that don't match their column type in ${datasetId}.${tableId}: ${droppedColumns.join(', ')}`
+        )
+      }
+      return coercedRow
+    })
+
     // Insert the data
     const table = this.client.dataset(datasetId).table(tableId)
-    await table.insert(rows)
+    await table.insert(coercedRows)
   }
 
   /**

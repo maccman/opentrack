@@ -74,6 +74,21 @@ describe('WebhookErrorHandler', () => {
       }
     })
 
+    it('should classify axios errors that never got a response by their code', () => {
+      const axiosErrors = [
+        { code: 'ECONNABORTED', retryable: true },
+        { code: 'ECONNREFUSED', retryable: true },
+        { code: 'ECONNRESET', retryable: true },
+        { code: 'ENOTFOUND', retryable: false },
+      ]
+
+      for (const { code, retryable } of axiosErrors) {
+        const result = WebhookErrorHandler.mapError({ isAxiosError: true, message: 'request failed', code })
+
+        expect(result.isRetryable).toBe(retryable)
+      }
+    })
+
     it('should handle unknown errors', () => {
       const unknownError = 'Some unknown error'
       const result = WebhookErrorHandler.mapError(unknownError)

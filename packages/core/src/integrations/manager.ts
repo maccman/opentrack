@@ -2,6 +2,7 @@ import type { Integration } from '@app/spec'
 import type { Logger } from 'pino'
 import pino from 'pino'
 
+import { describeIntegrationError } from './describe-error'
 import type { IntegrationPayload, IntegrationResult, LoggerConfig } from './types'
 
 export class IntegrationManager {
@@ -89,13 +90,14 @@ export class IntegrationManager {
         }
       } catch (error) {
         const duration = Date.now() - integrationStartTime
-        const errorObj = error instanceof Error ? error : new Error(String(error))
+        const errorSummary = describeIntegrationError(error)
+        const errorObj = error instanceof Error ? error : new Error(errorSummary.message)
 
         this.logger?.error(
           {
             integration: integrationName,
             duration,
-            error: errorObj,
+            error: errorSummary,
           },
           'Integration failed'
         )

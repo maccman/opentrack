@@ -1,6 +1,6 @@
 import type { TableField, TableSchema } from '@google-cloud/bigquery'
 
-import { BIGQUERY_TYPES, FIELD_MODES, TIMESTAMP_PATTERNS, TYPE_HIERARCHY, type BigQueryType } from './constants'
+import { BIGQUERY_TYPES, FIELD_MODES, TIMESTAMP_PATTERNS, type BigQueryType } from './constants'
 
 /**
  * Utility functions for managing BigQuery schemas and type detection
@@ -13,15 +13,16 @@ import { BIGQUERY_TYPES, FIELD_MODES, TIMESTAMP_PATTERNS, TYPE_HIERARCHY, type B
  */
 export function detectBigQueryType(value: unknown): BigQueryType {
   if (value === null || value === undefined) {
-    return BIGQUERY_TYPES.STRING // Default to STRING for null values, can be relaxed later
+    return BIGQUERY_TYPES.STRING // Default to STRING for null values
   }
 
   switch (typeof value) {
     case 'boolean':
       return BIGQUERY_TYPES.BOOLEAN
     case 'number':
-      // Check if it's an integer or float
-      return Number.isInteger(value) ? BIGQUERY_TYPES.INTEGER : BIGQUERY_TYPES.FLOAT
+      // Every number maps to FLOAT. Column types can't change once created, so an
+      // INTEGER column would have to drop the first decimal value it receives.
+      return BIGQUERY_TYPES.FLOAT
     case 'string':
       // Check if it's a valid timestamp
       if (isValidTimestamp(value)) {
@@ -75,10 +76,17 @@ export function generateSchemaFromRow(row: Record<string, unknown>): TableSchema
 }
 
 /**
- * Merges two BigQuery schemas, adding new fields and relaxing types as needed
+ * Merges a row's schema into a table schema using only changes BigQuery accepts:
+ * new columns are added, and REQUIRED columns the row doesn't provide are relaxed
+ * to NULLABLE.
+ *
+ * Existing column types never change. BigQuery's API rejects a schema update that
+ * changes a column's data type, so a value that doesn't match its column is
+ * coerced (or dropped) at insert time instead; see `coerceRowToSchema`.
+ *
  * @param existingSchema - Current table schema
  * @param newSchema - Schema generated from new data
- * @returns Updated schema with new fields and relaxed types
+ * @returns Updated schema and whether it differs from the existing one
  */
 export function mergeSchemas(
   existingSchema: TableSchema,
@@ -87,33 +95,24 @@ export function mergeSchemas(
   schema: TableSchema
   hasChanges: boolean
 } {
-  const existingFieldsMap = new Map<string, TableField>()
-  for (const field of existingSchema.fields || []) {
-    existingFieldsMap.set(field.name!, field)
-  }
-
-  const mergedFields: TableField[] = [...(existingSchema.fields || [])]
+  const existingFields = existingSchema.fields || []
+  const newFields = newSchema.fields || []
+  const existingNames = new Set(existingFields.map((field) => field.name))
+  const newNames = new Set(newFields.map((field) => field.name))
   let hasChanges = false
 
-  for (const newField of newSchema.fields || []) {
-    const existingField = existingFieldsMap.get(newField.name!)
+  const mergedFields: TableField[] = existingFields.map((field) => {
+    if (field.mode === FIELD_MODES.REQUIRED && !newNames.has(field.name)) {
+      hasChanges = true
+      return { ...field, mode: FIELD_MODES.NULLABLE }
+    }
+    return field
+  })
 
-    if (!existingField) {
-      // New field - add it
+  for (const newField of newFields) {
+    if (!existingNames.has(newField.name)) {
       mergedFields.push(newField)
       hasChanges = true
-    } else if (needsTypeRelaxation(existingField, newField)) {
-      // Existing field needs type relaxation
-      const relaxedType = relaxType(existingField.type!, newField.type!)
-      if (relaxedType !== existingField.type) {
-        // Update the existing field in the merged array
-        const fieldIndex = mergedFields.findIndex((f) => f.name === newField.name)
-        mergedFields[fieldIndex] = {
-          ...existingField,
-          type: relaxedType,
-        }
-        hasChanges = true
-      }
     }
   }
 
@@ -121,50 +120,6 @@ export function mergeSchemas(
     schema: { fields: mergedFields },
     hasChanges,
   }
-}
-
-/**
- * Determines if a field type needs to be relaxed to accommodate new data
- * @param existingField - Current field definition
- * @param newField - New field definition
- * @returns True if type relaxation is needed
- */
-function needsTypeRelaxation(existingField: TableField, newField: TableField): boolean {
-  if (existingField.type === newField.type) {
-    return false
-  }
-
-  const existingType = existingField.type!
-  const newType = newField.type!
-
-  // Common relaxation patterns using constants
-  const relaxationRules = [
-    [BIGQUERY_TYPES.INTEGER, BIGQUERY_TYPES.FLOAT],
-    [BIGQUERY_TYPES.INTEGER, BIGQUERY_TYPES.STRING],
-    [BIGQUERY_TYPES.FLOAT, BIGQUERY_TYPES.STRING],
-    [BIGQUERY_TYPES.BOOLEAN, BIGQUERY_TYPES.STRING],
-    [BIGQUERY_TYPES.TIMESTAMP, BIGQUERY_TYPES.STRING],
-  ] as const
-
-  return relaxationRules.some(([from, to]) => existingType === from && newType === to)
-}
-
-/**
- * Determines the most permissive type between two BigQuery types
- * @param type1 - First type
- * @param type2 - Second type
- * @returns The more permissive type
- */
-function relaxType(type1: string, type2: string): BigQueryType {
-  if (type1 === type2) {
-    return type1 as BigQueryType
-  }
-
-  const index1 = TYPE_HIERARCHY.indexOf(type1 as BigQueryType)
-  const index2 = TYPE_HIERARCHY.indexOf(type2 as BigQueryType)
-
-  // Return the type that's further in the hierarchy (more permissive)
-  return index1 > index2 ? (type1 as BigQueryType) : (type2 as BigQueryType)
 }
 
 /**
@@ -191,11 +146,11 @@ export function getBaseSchemaForTable(tableType: string): TableSchema {
       { name: 'event', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
       { name: 'event_text', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
     ],
-    identify: [
-      { name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }, // Override to make required
-    ],
+    // user_id stays NULLABLE: anonymous identify calls carry only an anonymous_id
+    identify: [],
     page: [
       { name: 'name', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'category', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'url', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'path', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'referrer', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
@@ -212,9 +167,10 @@ export function getBaseSchemaForTable(tableType: string): TableSchema {
       { name: 'event', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED },
       { name: 'event_text', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
     ],
-    identifies: [{ name: 'user_id', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.REQUIRED }],
+    identifies: [],
     pages: [
       { name: 'name', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
+      { name: 'category', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'url', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'path', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },
       { name: 'referrer', type: BIGQUERY_TYPES.STRING, mode: FIELD_MODES.NULLABLE },

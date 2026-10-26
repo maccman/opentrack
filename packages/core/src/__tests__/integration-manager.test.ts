@@ -429,6 +429,38 @@ describe('IntegrationManager', () => {
         )
       })
 
+      it('should log failure reasons without the rejected payload', async () => {
+        const insertError = Object.assign(new Error('A failure occurred during this request.'), {
+          name: 'PartialFailureError',
+          errors: [
+            {
+              row: { user_id: 'user_12345', email: 'person@example.com' },
+              errors: [{ reason: 'invalid', location: 'price', message: 'Cannot convert value person@example.com' }],
+            },
+          ],
+        })
+        const rejectingIntegration: Integration = {
+          name: 'Rejecting',
+          track: () => Promise.reject(insertError),
+          identify: () => Promise.resolve(),
+          page: () => Promise.resolve(),
+          group: () => Promise.resolve(),
+          alias: () => Promise.resolve(),
+        }
+        const manager = new IntegrationManager([rejectingIntegration], { enabled: true, logger: mockLogger })
+
+        await manager.process(createTrackPayload())
+
+        const errorCalls = vi.mocked(mockLogger.error).mock.calls as unknown as Array<[Record<string, unknown>, string]>
+        const [logged] = errorCalls[0]
+        expect(logged.error).toEqual({
+          name: 'PartialFailureError',
+          message: 'A failure occurred during this request.',
+          details: [{ reason: 'invalid', location: 'price' }],
+        })
+        expect(JSON.stringify(logged)).not.toContain('person@example.com')
+      })
+
       it('should not log when logger is disabled', async () => {
         const integrations = [new MockSuccessfulIntegration()]
         const manager = new IntegrationManager(integrations)

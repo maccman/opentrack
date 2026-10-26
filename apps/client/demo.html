@@ -77,12 +77,6 @@
     </div>
 
     <div class="demo-section">
-      <h2>Manual Flush</h2>
-      <button onclick="flushEvents()">Flush Events Now</button>
-      <p><small>Events are automatically flushed every 10 seconds or when 20 events are queued.</small></p>
-    </div>
-
-    <div class="demo-section">
       <h2>Debug Output</h2>
       <div id="debug-output" class="output">Events will appear here when debug mode is enabled...</div>
       <button onclick="toggleDebug()">Toggle Debug Mode</button>
@@ -97,8 +91,6 @@
       analytics.load('demo-write-key', {
         host: 'https://opentrack-web.vercel.app',
         debug: true,
-        flushAt: 5, // Flush after 5 events for demo
-        flushInterval: 5000, // Flush every 5 seconds for demo
       })
 
       let debugEnabled = true
@@ -238,18 +230,11 @@
         setTimeout(refreshUserInfo, 100)
       }
 
-      function flushEvents() {
-        analytics.flush()
-        captureLog('info', 'Events manually flushed')
-      }
-
       function toggleDebug() {
         debugEnabled = !debugEnabled
         analytics.load('demo-write-key', {
           host: 'http://localhost:3000',
           debug: debugEnabled,
-          flushAt: 5,
-          flushInterval: 5000,
         })
         captureLog('info', `Debug mode ${debugEnabled ? 'enabled' : 'disabled'}`)
       }

@@ -9,10 +9,10 @@ describe('detectBigQueryType', () => {
     expect(detectBigQueryType(false)).toBe('BOOLEAN')
   })
 
-  it('should detect integer types', () => {
-    expect(detectBigQueryType(123)).toBe('INTEGER')
-    expect(detectBigQueryType(0)).toBe('INTEGER')
-    expect(detectBigQueryType(-456)).toBe('INTEGER')
+  it('should map whole numbers to FLOAT so later decimals still fit the column', () => {
+    expect(detectBigQueryType(123)).toBe('FLOAT')
+    expect(detectBigQueryType(0)).toBe('FLOAT')
+    expect(detectBigQueryType(-456)).toBe('FLOAT')
   })
 
   it('should detect float types', () => {
@@ -72,7 +72,7 @@ describe('generateSchemaFromRow', () => {
     })
     expect(schema.fields).toContainEqual({
       name: 'count',
-      type: 'INTEGER',
+      type: 'FLOAT',
       mode: 'NULLABLE',
     })
     expect(schema.fields).toContainEqual({
@@ -155,31 +155,7 @@ describe('mergeSchemas', () => {
     })
   })
 
-  it('should relax field types when needed', () => {
-    const existingSchema: TableSchema = {
-      fields: [
-        { name: 'id', type: 'STRING', mode: 'NULLABLE' },
-        { name: 'count', type: 'INTEGER', mode: 'NULLABLE' },
-      ],
-    }
-
-    const newSchema: TableSchema = {
-      fields: [
-        { name: 'id', type: 'STRING', mode: 'NULLABLE' },
-        { name: 'count', type: 'FLOAT', mode: 'NULLABLE' }, // INT -> FLOAT
-      ],
-    }
-
-    const { schema: mergedSchema, hasChanges } = mergeSchemas(existingSchema, newSchema)
-
-    expect(hasChanges).toBe(true)
-    expect(mergedSchema.fields).toHaveLength(2)
-
-    const countField = mergedSchema.fields!.find((f) => f.name === 'count')
-    expect(countField?.type).toBe('FLOAT')
-  })
-
-  it('should handle multiple relaxations', () => {
+  it('should never change an existing column type, which BigQuery rejects', () => {
     const existingSchema: TableSchema = {
       fields: [
         { name: 'number_field', type: 'INTEGER', mode: 'NULLABLE' },
@@ -190,21 +166,41 @@ describe('mergeSchemas', () => {
 
     const newSchema: TableSchema = {
       fields: [
-        { name: 'number_field', type: 'STRING', mode: 'NULLABLE' }, // INT -> STRING
-        { name: 'bool_field', type: 'STRING', mode: 'NULLABLE' }, // BOOLEAN -> STRING
-        { name: 'timestamp_field', type: 'STRING', mode: 'NULLABLE' }, // TIMESTAMP -> STRING
+        { name: 'number_field', type: 'FLOAT', mode: 'NULLABLE' },
+        { name: 'bool_field', type: 'STRING', mode: 'NULLABLE' },
+        { name: 'timestamp_field', type: 'STRING', mode: 'NULLABLE' },
+      ],
+    }
+
+    const { schema: mergedSchema, hasChanges } = mergeSchemas(existingSchema, newSchema)
+
+    expect(hasChanges).toBe(false)
+    expect(mergedSchema.fields).toEqual(existingSchema.fields)
+  })
+
+  it('should relax REQUIRED columns the new row does not provide', () => {
+    const existingSchema: TableSchema = {
+      fields: [
+        { name: 'id', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'user_id', type: 'STRING', mode: 'REQUIRED' },
+      ],
+    }
+
+    const newSchema: TableSchema = {
+      fields: [
+        { name: 'id', type: 'STRING', mode: 'NULLABLE' },
+        { name: 'anonymous_id', type: 'STRING', mode: 'NULLABLE' },
       ],
     }
 
     const { schema: mergedSchema, hasChanges } = mergeSchemas(existingSchema, newSchema)
 
     expect(hasChanges).toBe(true)
-    expect(mergedSchema.fields).toHaveLength(3)
-
-    // All fields should be relaxed to STRING
-    mergedSchema.fields!.forEach((field) => {
-      expect(field.type).toBe('STRING')
-    })
+    expect(mergedSchema.fields).toEqual([
+      { name: 'id', type: 'STRING', mode: 'REQUIRED' },
+      { name: 'user_id', type: 'STRING', mode: 'NULLABLE' },
+      { name: 'anonymous_id', type: 'STRING', mode: 'NULLABLE' },
+    ])
   })
 
   it('should return no changes when schemas are identical', () => {
@@ -252,9 +248,9 @@ describe('getBaseSchemaForTable', () => {
 
     expect(schema.fields).toBeDefined()
 
-    // Should have user_id as required for identifies
+    // user_id is optional so anonymous identify calls can be stored
     const userIdField = schema.fields!.find((f) => f.name === 'user_id')
-    expect(userIdField?.mode).toBe('REQUIRED')
+    expect(userIdField?.mode).toBe('NULLABLE')
   })
 
   it('should return pages schema', () => {
@@ -335,6 +331,6 @@ describe('getBaseSchemaForTable', () => {
 
     const identifySchema = getBaseSchemaForTable('identify')
     const userIdField = identifySchema.fields!.find((f) => f.name === 'user_id')
-    expect(userIdField?.mode).toBe('REQUIRED')
+    expect(userIdField?.mode).toBe('NULLABLE')
   })
 })

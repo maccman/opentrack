@@ -227,6 +227,32 @@ describe('TableManager', () => {
       expect(tableGetMetadataSpy).toHaveBeenCalled()
       expect(tableSetMetadataSpy).toHaveBeenCalled()
     })
+
+    it('should retry a failed schema update against the live schema', async () => {
+      const staleSchema: TableSchema = {
+        fields: [{ name: 'id', type: 'STRING', mode: 'REQUIRED' }],
+      }
+      const liveSchema: TableSchema = {
+        fields: [
+          { name: 'id', type: 'STRING', mode: 'REQUIRED' },
+          { name: 'added_elsewhere', type: 'STRING', mode: 'NULLABLE' },
+        ],
+      }
+
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy
+        .mockResolvedValueOnce([{ schema: staleSchema }])
+        .mockResolvedValueOnce([{ schema: liveSchema }])
+      tableSetMetadataSpy.mockRejectedValueOnce(new Error('Provided Schema does not match Table'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await tableManager.ensureTableReady('test-dataset', 'test-table', 'tracks', { id: 'test', new_field: 'new' })
+
+      expect(tableSetMetadataSpy).toHaveBeenCalledTimes(2)
+      const retryCall = tableSetMetadataSpy.mock.calls[1][0] as { schema: TableSchema }
+      expect(retryCall.schema.fields?.map((field) => field.name)).toEqual(['id', 'added_elsewhere', 'new_field'])
+    })
   })
 
   describe('insertWithAutoSchema', () => {
@@ -244,6 +270,29 @@ describe('TableManager', () => {
 
       expect(tableCreateSpy).toHaveBeenCalled()
       expect(tableInsertSpy).toHaveBeenCalledWith(rows)
+    })
+
+    it('should fit values to existing column types instead of failing the insert', async () => {
+      const existingSchema: TableSchema = {
+        fields: [
+          { name: 'id', type: 'STRING', mode: 'REQUIRED' },
+          { name: 'quantity', type: 'INTEGER', mode: 'NULLABLE' },
+          { name: 'label', type: 'STRING', mode: 'NULLABLE' },
+        ],
+      }
+
+      datasetExistsSpy.mockResolvedValue([true])
+      tableExistsSpy.mockResolvedValue([true])
+      tableGetMetadataSpy.mockResolvedValue([{ schema: existingSchema }])
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await tableManager.insertWithAutoSchema('test-dataset', 'test-table', 'tracks', [
+        { id: 'test1', quantity: 9.99, label: 7 },
+      ])
+
+      expect(tableSetMetadataSpy).not.toHaveBeenCalled()
+      expect(tableInsertSpy).toHaveBeenCalledWith([{ id: 'test1', label: '7' }])
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('test-dataset.test-table: quantity'))
     })
 
     it('should handle empty rows array', async () => {

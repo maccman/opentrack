@@ -125,6 +125,12 @@ describe('Segment Event Validation', () => {
       expect(() => pageEventSchema.parse(invalidWithNeither)).toThrow()
     })
 
+    test('page event keeps its category', () => {
+      const parsed = pageEventSchema.parse({ type: 'page', anonymousId: 'anon123', name: 'Intro', category: 'Docs' })
+
+      expect(parsed.category).toBe('Docs')
+    })
+
     test('group event requires userId OR anonymousId AND groupId', () => {
       const validWithUserId: GroupPayload = {
         type: 'group',

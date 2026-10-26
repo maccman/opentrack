@@ -59,7 +59,8 @@ export class WebhookIntegration implements Integration {
       (error) => {
         const mappedError = WebhookErrorHandler.mapError(error)
         console.error(`[Webhook] Request failed:`, mappedError.message)
-        return Promise.reject(new Error(mappedError.message))
+        // Pass the original axios error on: its status code is what decides whether to retry
+        return Promise.reject(error instanceof Error ? error : new Error(String(error)))
       }
     )
   }

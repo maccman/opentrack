@@ -223,6 +223,18 @@ describe('CustomerioTransformer', () => {
       })
     })
 
+    it('should include the page category', () => {
+      const payload: PagePayload = {
+        type: 'page',
+        userId: 'user123',
+        name: 'Getting Started',
+        category: 'Docs',
+      }
+
+      const result = CustomerioTransformer.transformPage(payload)
+      expect(result.properties.page_category).toBe('Docs')
+    })
+
     it('should convert camelCase property keys to snake_case', () => {
       const payload: PagePayload = {
         type: 'page',

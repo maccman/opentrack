@@ -3,7 +3,9 @@
 export interface AnalyticsOptions {
   writeKey?: string
   host?: string
+  /** @deprecated Events are sent as they happen, so this has no effect */
   flushAt?: number
+  /** @deprecated Events are sent as they happen, so this has no effect */
   flushInterval?: number
   debug?: boolean
   storagePrefix?: string

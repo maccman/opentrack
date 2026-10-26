@@ -81,7 +81,7 @@ export class CustomerioTransformer {
     event: string
     properties: Record<string, unknown>
   } {
-    const { userId, name, properties = {} } = payload
+    const { userId, name, category, properties = {} } = payload
 
     // Create a page title from name
     const pageTitle = name || 'Page Viewed'
@@ -93,6 +93,10 @@ export class CustomerioTransformer {
 
     if (name) {
       transformedProperties.page_name = name
+    }
+
+    if (category) {
+      transformedProperties.page_category = category
     }
 
     if (payload.timestamp) {

@@ -5,8 +5,8 @@ This package provides a BigQuery integration for OpenTrack, designed to replicat
 ## Features
 
 - **Segment-Compatible Schema**: Creates tables and columns that match Segment's conventions, making it compatible with existing queries and BI tools.
-- **Automatic Table & Schema Management**: Automatically creates datasets and tables, adds columns for new properties, and relaxes data types as needed. This feature can be disabled for manual management.
-- **Type Inference**: Intelligently detects data types from your event payloads and maps them to appropriate BigQuery types (e.g., `INTEGER`, `FLOAT`, `TIMESTAMP`, `STRING`).
+- **Automatic Table & Schema Management**: Automatically creates datasets and tables, adds columns for new properties, and converts values to fit existing column types (values that cannot fit are dropped with a warning, since BigQuery cannot change a column's type). This feature can be disabled for manual management.
+- **Type Inference**: Intelligently detects data types from your event payloads and maps them to appropriate BigQuery types (`FLOAT` for all numbers, `BOOLEAN`, `TIMESTAMP`, `STRING`).
 - **High Performance**: Caches schemas in memory to minimize API calls to BigQuery.
 
 For a detailed specification of the schema, tables, and data handling, please see the [BigQuery Spec Documentation](../../docs/10-bigquery-spec.md).
