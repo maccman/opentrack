@@ -36,11 +36,42 @@ export interface FakePage {
 export interface FakeBrowser {
   store: Map<string, string>
   openPage: () => Promise<FakePage>
-  /** Names of the events waiting in the persisted queue, oldest first */
-  queuedEventNames: () => unknown[]
+  /** Names of the events waiting in a persisted queue, oldest first */
+  queuedEventNames: (namespace?: string) => unknown[]
+  /** Bytes the queue's records take in storage, keys included */
+  queuedBytes: (namespace?: string) => number
 }
 
-export const QUEUE_KEY = 'analytics_queue'
+export const DEFAULT_QUEUE_NAMESPACE = 'analytics_queue'
+
+/** A localStorage backed by a map, which tests can read directly */
+export function createFakeStorage(store: Map<string, string>): Storage {
+  return {
+    get length() {
+      return store.size
+    },
+    key: (index: number) => [...store.keys()][index] ?? null,
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    clear: () => store.clear(),
+  }
+}
+
+function queueRecords(store: Map<string, string>, namespace: string) {
+  return [...store.entries()]
+    .filter(([key]) => key.startsWith(`${namespace}:`))
+    .map(([key, value]) => ({
+      key,
+      value,
+      entry: JSON.parse(value) as { storedAt: number; sequence: number; event: Record<string, unknown> },
+    }))
+    .sort((a, b) => a.entry.storedAt - b.entry.storedAt || a.entry.sequence - b.entry.sequence)
+}
 
 /** Lets pending promise callbacks, such as fetch responses, run */
 export async function settle(): Promise<void> {
@@ -147,19 +178,18 @@ async function openPage(): Promise<FakePage> {
  */
 export function createFakeBrowser(): FakeBrowser {
   const store = new Map<string, string>()
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => store.set(key, value),
-    removeItem: (key: string) => store.delete(key),
-  })
+  vi.stubGlobal('localStorage', createFakeStorage(store))
+  const encoder = new TextEncoder()
 
   return {
     store,
     openPage,
-    queuedEventNames: () => {
-      const stored = store.get(QUEUE_KEY)
-      const entries = stored ? (JSON.parse(stored) as Array<{ event: Record<string, unknown> }>) : []
-      return entries.map(({ event }) => event.event ?? event.name)
-    },
+    queuedEventNames: (namespace = DEFAULT_QUEUE_NAMESPACE) =>
+      queueRecords(store, namespace).map(({ entry }) => entry.event.event ?? entry.event.name),
+    queuedBytes: (namespace = DEFAULT_QUEUE_NAMESPACE) =>
+      queueRecords(store, namespace).reduce(
+        (sum, { key, value }) => sum + encoder.encode(key).byteLength + encoder.encode(value).byteLength,
+        0
+      ),
   }
 }

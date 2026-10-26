@@ -78,10 +78,10 @@ All tables include these standard Segment columns:
 
 ### Deduplication
 
-`id` is the event's `messageId` and is the dedupe key. The same event can arrive more than once: the
-browser client retries failed requests and replays events it could not confirm on a later page load,
-and other senders may retry too. Each row is streamed with its `id` as the BigQuery `insertId`, so
-BigQuery drops a repeat of a row it received shortly before.
+The event's `messageId` is the dedupe key, stored in the `id` column. The same event can arrive more
+than once: the browser client retries failed requests and replays events it could not confirm on a
+later page load, and other senders may retry too. Each row is streamed with the event's `messageId` as
+the BigQuery `insertId`, so BigQuery drops a repeat of a row it received shortly before.
 
 That dedupe is **best effort**. BigQuery documents it as covering repeats within up to one minute, and
 even then it might keep both rows, so a replay a day later is always inserted again. Which of two
@@ -93,6 +93,10 @@ SELECT * FROM `project.dataset.pages`
 WHERE TRUE
 QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at) = 1
 ```
+
+Caveat: a property or trait named `id` currently overwrites the `id` column, so those rows hold that
+value instead of the `messageId` and can't be deduped this way. The `insertId` is unaffected, since it
+is taken from the event, not the row.
 
 ## Best Practices
 

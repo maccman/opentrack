@@ -377,21 +377,24 @@ configuration after 10 seconds.
 - **Confirmation and retries.** An event counts as delivered only when the server answers 2xx. Network errors,
   timeouts, 429s and 5xxs are retried `retries` times, waiting `retryDelay` and then twice as long each time. Any
   other 4xx means a resend would be refused too, so the event is dropped.
-- **Replay.** Every event is written to localStorage (under `analytics_queue`, shared by the site's tabs) when it's
-  tracked and removed once it's delivered or refused. Events that are held, in flight or failing when the page
-  closes stay there, and the next page load sends them after `load()` runs, with their original `messageId` and
-  `timestamp`. The queue keeps at most the newest 100 events and 256 KB, and forgets events after 7 days. Without
-  localStorage, events are still sent, just never replayed. Because a replayed event may already have arrived (its
-  response was lost when the page closed), destinations should dedupe on `messageId`; the BigQuery destination
-  stores it as `id`.
+- **Replay.** Every event is written to localStorage when it's tracked, as its own record under
+  `<storagePrefix>queue:<messageId>` (so the site's tabs can't overwrite each other's), and removed once it's
+  delivered or refused. Events that are held, in flight or failing when the page closes stay there, and the next
+  page load sends them after `load()` runs, with their original `messageId` and `timestamp`. Each record remembers
+  the `host` and write key it was meant for, and a page only replays records for its own. Events tracked before
+  `load()` get the configuration of the page whose `load()` sends them; if their page closed first, the next page
+  using the default `storagePrefix` claims them. The queue keeps at most the newest 100 events and 256 KB, and
+  forgets events after 7 days. Without localStorage, events are still sent, just never replayed. Because a replayed
+  event may already have arrived (its response was lost when the page closed), destinations should dedupe on
+  `messageId`.
 - **Batches.** The events released at `load()`, together with replayed ones, go to `/v1/batch`, split into
   requests under 60 KB and sent one at a time, which keeps them within the 64 KB browsers allow for keepalive
   requests and beacons in flight.
-- **Page hide.** When the page is hidden (`visibilitychange`) or unloaded (`pagehide`), events still held for
-  `load()`, or events that failed, are sent with `navigator.sendBeacon` to `/v1/batch`, with the write key in the
-  body because beacons can't carry headers. Requests already in flight are left to finish. A beacon reports no
-  status, so its events stay queued for replay until a later request confirms them. Set `useBeacon: false` to
-  skip beacons and rely on replay alone.
+- **Page hide.** When the page is hidden (`visibilitychange`) or unloaded (`pagehide`), unsent events (held for
+  `load()`, failed, waiting to retry, or in a batch chunk not sent yet) are sent with `navigator.sendBeacon` to
+  `/v1/batch`, with the write key in the body because beacons can't carry headers. Requests already in flight are
+  left to finish. A beacon reports no status, so its events stay queued for replay until a later request confirms
+  them. Set `useBeacon: false` to skip beacons and rely on replay alone.
 
 With `debug: true`, the client logs each delivery, retry and failure with the endpoint, event count and HTTP status;
 it never logs event payloads.

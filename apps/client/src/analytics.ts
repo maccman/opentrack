@@ -16,7 +16,8 @@ import {
   AnalyticsTransport,
   buildContext,
   buildPageProperties,
-  type DeliveryResult,
+  type DeliveryCallbacks,
+  describeDestination,
   generateId,
   generateMessageId,
   PersistedQueue,
@@ -53,8 +54,10 @@ class Analytics {
   private isReady = false
   // Events fired before load() wait here so they go out with its host and write key
   private heldEvents: EventPayload[] = []
-  // Message IDs this page is sending, so replays and beacons skip them
-  private sendingIds = new Set<string>()
+  // Message IDs this page is still delivering, retries included, so a replay doesn't send them twice
+  private pendingIds = new Set<string>()
+  // Message IDs with a request in flight, which keepalive lets finish if the page unloads
+  private inFlightIds = new Set<string>()
   // Message IDs this page has beaconed, so each is beaconed at most once
   private beaconedIds = new Set<string>()
   private flushTimer: number | null = null
@@ -70,8 +73,8 @@ class Analytics {
       traitsKey: this.config.traitsKey,
     })
 
-    // Every event stays here until the server confirms it
-    this.persistedQueue = new PersistedQueue(`${this.config.storagePrefix}queue`)
+    // Every event stays here until the server confirms it. load() can move it to another storagePrefix
+    this.persistedQueue = new PersistedQueue(this.queueNamespace())
 
     // Initialize transport
     this.transport = new AnalyticsTransport({
@@ -118,6 +121,8 @@ class Analytics {
       retries: this.config.retries,
       retryDelay: this.config.retryDelay,
     })
+
+    this.moveQueueTo(this.queueNamespace())
 
     // From here on events are sent as they happen
     this.release()
@@ -303,8 +308,9 @@ class Analytics {
       return
     }
 
-    // Kept until the server confirms it, so it can be replayed if this page closes first
-    this.persistedQueue.add(payload)
+    // Kept until the server confirms it, so it can be replayed if this page closes first. Events
+    // held for load() get their destination when it runs
+    this.persistedQueue.add(payload, this.isLoaded ? this.destination() : null)
 
     if (this.isLoaded) {
       void this.deliverEvent(payload)
@@ -334,9 +340,36 @@ class Analytics {
     this.isLoaded = true
     this.clearFlushTimer()
 
-    // The queue also holds this page's held events, so it comes first to keep events in order
-    const replayed = this.persistedQueue.read().filter((event) => !this.isSending(event))
+    // Events still waiting for load(), this page's or a closed page's, go where this page sends.
+    // The queue then holds the held events too, so it comes first to keep events in order
+    const destination = this.destination()
+    this.persistedQueue.claim(destination)
+    const replayed = this.persistedQueue.read(destination).filter((event) => !this.isPending(event))
     void this.deliverBatch(uniqueByMessageId([...replayed, ...this.takeHeldEvents()]))
+  }
+
+  private destination(): string {
+    return describeDestination(this.config.host, this.config.writeKey)
+  }
+
+  private queueNamespace(): string {
+    return `${this.config.storagePrefix}queue`
+  }
+
+  /**
+   * Moves the queue to the storagePrefix load() configured. The singleton is
+   * created before load() runs, so events held for it start in the default
+   * namespace; events other pages left there stay for pages that use it.
+   */
+  private moveQueueTo(namespace: string): void {
+    if (namespace === this.persistedQueue.namespace) {
+      return
+    }
+
+    const queue = new PersistedQueue(namespace)
+    this.persistedQueue.remove(messageIdsOf(this.heldEvents))
+    this.heldEvents.forEach((event) => queue.add(event, null))
+    this.persistedQueue = queue
   }
 
   private takeHeldEvents(): EventPayload[] {
@@ -352,54 +385,62 @@ class Analytics {
     }
   }
 
-  private deliverEvent(event: EventPayload): Promise<void> {
-    return this.whileSending([event], async () => {
-      this.settle([event], await this.transport.sendEvent(event))
-    })
+  private async deliverEvent(event: EventPayload): Promise<void> {
+    await this.deliver([event], async (callbacks) => await this.transport.sendEvent(event, callbacks))
   }
 
-  private deliverBatch(events: EventPayload[]): Promise<void> {
-    return this.whileSending(events, () =>
-      this.transport.sendBatch(events, (chunk, result) => this.settle(chunk, result))
-    )
+  private async deliverBatch(events: EventPayload[]): Promise<void> {
+    await this.deliver(events, async (callbacks) => await this.transport.sendBatch(events, callbacks))
   }
 
-  private async whileSending(events: EventPayload[], send: () => Promise<void>): Promise<void> {
+  /**
+   * Tracks events while the transport sends them: pending until each settles,
+   * and in flight only while a request carries them
+   */
+  private async deliver(events: EventPayload[], send: (callbacks: DeliveryCallbacks) => Promise<void>): Promise<void> {
     if (events.length === 0) {
       return
     }
 
+    // Settled events leave the queue they were sent from, even if load() moves it meanwhile
+    const queue = this.persistedQueue
     const ids = messageIdsOf(events)
-    ids.forEach((id) => this.sendingIds.add(id))
+    ids.forEach((id) => this.pendingIds.add(id))
+
     try {
-      await send()
+      await send({
+        onRequestStart: (requestEvents) => messageIdsOf(requestEvents).forEach((id) => this.inFlightIds.add(id)),
+        onRequestEnd: (requestEvents) => messageIdsOf(requestEvents).forEach((id) => this.inFlightIds.delete(id)),
+        onSettled: (settledEvents, result) => {
+          const settledIds = messageIdsOf(settledEvents)
+          settledIds.forEach((id) => this.pendingIds.delete(id))
+          // Delivered and rejected events are done; failed ones stay queued for replay
+          if (result !== 'failed') {
+            queue.remove(settledIds)
+          }
+        },
+      })
     } finally {
-      ids.forEach((id) => this.sendingIds.delete(id))
+      ids.forEach((id) => this.pendingIds.delete(id))
     }
   }
 
-  // Delivered and rejected events are done; failed ones stay queued for replay
-  private settle(events: EventPayload[], result: DeliveryResult): void {
-    if (result !== 'failed') {
-      this.persistedQueue.remove(messageIdsOf(events))
-    }
-  }
-
-  private isSending(event: EventPayload): boolean {
-    return event.messageId !== undefined && this.sendingIds.has(event.messageId)
+  private isPending(event: EventPayload): boolean {
+    return event.messageId !== undefined && this.pendingIds.has(event.messageId)
   }
 
   /**
    * Beacons the events a closing page would otherwise leave behind: those held
-   * for load() or, once loaded, queued events that aren't in flight, such as
-   * ones that failed. Requests already in flight finish on their own, since
-   * they use keepalive. A beacon reports no status, so its events stay queued
-   * until a later request confirms them, normally on the next page load.
+   * for load() or, once loaded, queued events without a request in flight,
+   * such as ones that failed, are waiting to retry, or are in a batch chunk
+   * not sent yet. Requests already in flight finish on their own, since they
+   * use keepalive. A beacon reports no status, so its events stay queued until
+   * a later request confirms them, normally on the next page load.
    */
   private sendOnPageHide(): void {
-    const candidates = this.isLoaded ? this.persistedQueue.read() : this.heldEvents
+    const candidates = this.isLoaded ? this.persistedQueue.read(this.destination()) : this.heldEvents
     const events = candidates.filter(
-      (event) => !this.isSending(event) && !(event.messageId && this.beaconedIds.has(event.messageId))
+      (event) => !(event.messageId && (this.inFlightIds.has(event.messageId) || this.beaconedIds.has(event.messageId)))
     )
     if (events.length === 0) {
       return

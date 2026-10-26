@@ -23,6 +23,15 @@ export interface TransportConfig {
  */
 export type DeliveryResult = 'delivered' | 'rejected' | 'failed'
 
+export interface DeliveryCallbacks {
+  /** A request carrying these events started; it can finish after the page unloads */
+  onRequestStart: (events: EventPayload[]) => void
+  /** That request ended, so until a retry starts nothing is carrying these events */
+  onRequestEnd: (events: EventPayload[]) => void
+  /** Sending these events ended with `result` */
+  onSettled: (events: EventPayload[], result: DeliveryResult) => void
+}
+
 const TRANSPORT_CONSTANTS = {
   CONTENT_TYPE: 'application/json',
   BATCH_PATH: '/v1/batch',
@@ -68,33 +77,34 @@ export class AnalyticsTransport {
   /**
    * Sends one event to its own endpoint, such as `/v1/track`
    */
-  async sendEvent(event: EventPayload): Promise<DeliveryResult> {
+  async sendEvent(event: EventPayload, callbacks: DeliveryCallbacks): Promise<void> {
     const body = serializeEvent(event)
     if (body === null) {
       this.debugError(`Dropping a ${event.type} event that can't be serialized`)
-      return 'rejected'
+      callbacks.onSettled([event], 'rejected')
+      return
     }
 
-    return await this.postWithRetry(`/v1/${event.type}`, body, 1)
+    callbacks.onSettled([event], await this.postWithRetry(`/v1/${event.type}`, body, [event], callbacks))
   }
 
   /**
    * Sends events to `/v1/batch`, split into bodies under the keepalive budget.
    * The chunks go one at a time, so the batch never has more than one request
-   * in flight, and `onSettled` reports each chunk's result as it ends.
+   * in flight, and each chunk's result is reported as it ends.
    */
-  async sendBatch(
-    events: EventPayload[],
-    onSettled: (events: EventPayload[], result: DeliveryResult) => void
-  ): Promise<void> {
+  async sendBatch(events: EventPayload[], callbacks: DeliveryCallbacks): Promise<void> {
     const { chunks, unserializable } = buildBatchChunks(events)
     if (unserializable.length > 0) {
       this.debugError(`Dropping ${describeCount(unserializable.length)} that can't be serialized`)
-      onSettled(unserializable, 'rejected')
+      callbacks.onSettled(unserializable, 'rejected')
     }
 
     for (const chunk of chunks) {
-      onSettled(chunk.events, await this.postWithRetry(TRANSPORT_CONSTANTS.BATCH_PATH, chunk.body, chunk.events.length))
+      callbacks.onSettled(
+        chunk.events,
+        await this.postWithRetry(TRANSPORT_CONSTANTS.BATCH_PATH, chunk.body, chunk.events, callbacks)
+      )
     }
   }
 
@@ -138,30 +148,38 @@ export class AnalyticsTransport {
    * POSTs a body, retrying network errors, timeouts, 429s and 5xxs with
    * exponential backoff
    */
-  private async postWithRetry(path: string, body: string, eventCount: number): Promise<DeliveryResult> {
-    const events = describeCount(eventCount)
+  private async postWithRetry(
+    path: string,
+    body: string,
+    events: EventPayload[],
+    callbacks: DeliveryCallbacks
+  ): Promise<DeliveryResult> {
+    const count = describeCount(events.length)
     let lastFailure = ''
 
     for (let attempt = 0; attempt <= this.config.retries; attempt++) {
       if (attempt > 0) {
         const delay = this.config.retryDelay * Math.pow(2, attempt - 1)
-        this.debugLog(`Sending ${events} to ${path} failed (${lastFailure}), retrying in ${delay}ms`)
+        this.debugLog(`Sending ${count} to ${path} failed (${lastFailure}), retrying in ${delay}ms`)
         await this.sleep(delay)
       }
 
+      callbacks.onRequestStart(events)
       const status = await this.post(this.buildEndpoint(path), body)
+      callbacks.onRequestEnd(events)
+
       if (status !== null && status >= 200 && status < 300) {
-        this.debugLog(`Delivered ${events} to ${path}`)
+        this.debugLog(`Delivered ${count} to ${path}`)
         return 'delivered'
       }
       if (status !== null && !isRetryableStatus(status)) {
-        this.debugError(`${path} rejected ${events} with HTTP ${status}`)
+        this.debugError(`${path} rejected ${count} with HTTP ${status}`)
         return 'rejected'
       }
       lastFailure = status === null ? 'network error or timeout' : `HTTP ${status}`
     }
 
-    this.debugError(`Could not deliver ${events} to ${path} (${lastFailure}); keeping them for replay`)
+    this.debugError(`Could not deliver ${count} to ${path} (${lastFailure}); keeping them for replay`)
     return 'failed'
   }
 

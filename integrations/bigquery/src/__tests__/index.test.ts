@@ -65,17 +65,17 @@ describe('BigQueryIntegration', () => {
       expect(mockTableManagerInstance.insertWithAutoSchema).toHaveBeenCalledTimes(2)
     })
 
-    it('passes rows keyed by the event messageId to TableManager', async () => {
+    it('passes the event messageId to TableManager as the insertId', async () => {
       const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: true })
-      await integration.track(createTrackPayload())
+      await integration.track(createTrackPayload({ properties: { id: 'product-42' } }))
       const mockTableManagerInstance = vi.mocked(TableManager).mock.instances[0] as unknown as {
         insertWithAutoSchema: ReturnType<typeof vi.fn>
       }
 
       const calls = mockTableManagerInstance.insertWithAutoSchema.mock.calls as Array<
-        [string, string, string, Array<Record<string, unknown>>]
+        [string, string, string, Array<Record<string, unknown>>, string[]]
       >
-      expect(calls.map(([, tableName, , rows]) => [tableName, rows.map((row) => row.id)])).toEqual([
+      expect(calls.map(([, tableName, , , insertIds]) => [tableName, insertIds])).toEqual([
         ['tracks', ['test-message-id']],
         ['product_purchased', ['test-message-id']],
       ])
@@ -113,6 +113,17 @@ describe('BigQueryIntegration', () => {
         [{ insertId: 'test-message-id', json: expect.objectContaining({ id: 'test-message-id' }) as unknown }],
         { raw: true }
       )
+    })
+
+    it('gives distinct events distinct insertIds even when they share an id property', async () => {
+      const integration = new BigQueryIntegration({ ...defaultConfig, autoTableManagement: false })
+      await integration.track(createTrackPayload({ messageId: 'message-1', properties: { id: 'product-42' } }))
+      await integration.track(createTrackPayload({ messageId: 'message-2', properties: { id: 'product-42' } }))
+
+      const insertIds = (mockInsert.mock.calls as Array<[Array<{ insertId?: string }>, unknown]>).map(
+        ([rows]) => rows[0].insertId
+      )
+      expect(insertIds).toEqual(['message-1', 'message-1', 'message-2', 'message-2'])
     })
 
     it('should fail gracefully if direct insertion fails', async () => {

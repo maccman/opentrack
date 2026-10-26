@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { KEEPALIVE_BYTE_LIMIT } from '@/utils'
 
-import { createFakeBrowser, QUEUE_KEY, settle } from './fake-browser'
+import { createFakeBrowser, settle } from './fake-browser'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -141,6 +141,41 @@ describe('sendBeacon', () => {
     expect(browser.queuedEventNames()).toEqual(['Clicked'])
   })
 
+  it('carries an event waiting to retry, since no request is in flight for it', async () => {
+    vi.useFakeTimers()
+    const browser = createFakeBrowser()
+    const page = await browser.openPage()
+    page.analytics.load('test-key')
+    page.respondWith(503)
+
+    page.analytics.track('Clicked')
+    await settle()
+    page.fireWindowEvent('pagehide')
+
+    const beacons = await page.beacons()
+    expect(beacons).toHaveLength(1)
+    expect(beacons[0].body.batch).toEqual([expect.objectContaining({ event: 'Clicked' })])
+  })
+
+  it('carries batch chunks not sent yet, but not the chunk in flight', async () => {
+    const page = await createFakeBrowser().openPage()
+    for (let index = 0; index < 30; index++) {
+      page.analytics.track(`Event ${index}`, { notes: 'x'.repeat(5 * 1024) })
+    }
+    page.respondWith('hang')
+
+    page.analytics.load('test-key')
+    page.fireWindowEvent('pagehide')
+
+    const inFlight = page.sentEvents().map((event) => event.event)
+    const beaconed = (await page.beacons()).flatMap((beacon) =>
+      (beacon.body.batch as Array<Record<string, unknown>>).map((event) => event.event)
+    )
+    expect(inFlight.length).toBeGreaterThan(0)
+    expect(beaconed.length).toBeGreaterThan(0)
+    expect([...inFlight, ...beaconed]).toEqual(Array.from({ length: 30 }, (_, index) => `Event ${index}`))
+  })
+
   it('is not used when useBeacon is false', async () => {
     const browser = createFakeBrowser()
     const page = await browser.openPage()
@@ -221,6 +256,47 @@ describe('replay after reload', () => {
     expect(replayed.timestamp).toBe(original.timestamp)
   })
 
+  it('replays an event only to the host and write key it was meant for', async () => {
+    const browser = createFakeBrowser()
+    const first = await browser.openPage()
+    first.analytics.load('key-a', { host: 'https://a.test', retries: 0 })
+    first.respondWith(503)
+    first.analytics.track('For A')
+    await settle()
+
+    const other = await browser.openPage()
+    other.analytics.load('key-b', { host: 'https://b.test' })
+    other.fireWindowEvent('pagehide')
+    expect(other.requests).toHaveLength(0)
+    expect(other.beaconCount()).toBe(0)
+
+    const same = await browser.openPage()
+    same.analytics.load('key-a', { host: 'https://a.test' })
+    expect(same.requests.map((request) => request.url)).toEqual(['https://a.test/v1/batch'])
+    expect(same.sentEvents().map((event) => event.event)).toEqual(['For A'])
+  })
+
+  it('keeps the queue under the storagePrefix load() configures', async () => {
+    const browser = createFakeBrowser()
+    const first = await browser.openPage()
+    first.respondByDefault(503)
+    first.analytics.track('Held')
+    first.analytics.load('key-a', { storagePrefix: 'projectA_', retries: 0 })
+    first.analytics.track('Clicked')
+    await settle()
+
+    expect(browser.queuedEventNames('projectA_queue')).toEqual(['Held', 'Clicked'])
+    expect(browser.queuedEventNames()).toEqual([])
+
+    const other = await browser.openPage()
+    other.analytics.load('key-a', { storagePrefix: 'projectB_' })
+    expect(other.requests).toHaveLength(0)
+
+    const same = await browser.openPage()
+    same.analytics.load('key-a', { storagePrefix: 'projectA_' })
+    expect(same.sentEvents().map((event) => event.event)).toEqual(['Held', 'Clicked'])
+  })
+
   it('does not replay events queued seven days ago or more', async () => {
     vi.useFakeTimers()
     const browser = createFakeBrowser()
@@ -272,7 +348,7 @@ describe('replay after reload', () => {
     await settle()
 
     const queued = browser.queuedEventNames()
-    expect(new TextEncoder().encode(browser.store.get(QUEUE_KEY)).byteLength).toBeLessThanOrEqual(256 * 1024)
+    expect(browser.queuedBytes()).toBeLessThanOrEqual(256 * 1024)
     expect(queued.length).toBeLessThan(10)
     expect(queued[queued.length - 1]).toBe('Event 9')
   })

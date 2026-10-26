@@ -273,12 +273,14 @@ export class TableManager {
    * @param tableId - BigQuery table ID
    * @param tableType - Type of table
    * @param rows - Data rows to insert
+   * @param insertIds - Each row's event messageId, which BigQuery dedupes on
    */
   async insertWithAutoSchema(
     datasetId: string,
     tableId: string,
     tableType: string,
-    rows: Array<Record<string, unknown>>
+    rows: Array<Record<string, unknown>>,
+    insertIds: Array<string | undefined> = []
   ): Promise<void> {
     if (rows.length === 0) {
       return
@@ -305,7 +307,7 @@ export class TableManager {
 
     // Insert the data
     const table = this.client.dataset(datasetId).table(tableId)
-    await table.insert(toInsertRows(coercedRows), RAW_INSERT_OPTIONS)
+    await table.insert(toInsertRows(coercedRows, insertIds), RAW_INSERT_OPTIONS)
   }
 
   /**
